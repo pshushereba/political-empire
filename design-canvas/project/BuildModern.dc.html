@@ -49,22 +49,53 @@ button:focus-visible,a:focus-visible{outline:2px solid #E8A33D;outline-offset:2p
           <h1 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 30px">Saline District</h1>
           <span style="font-size: 14px; color: #9AA4B1">7 hexes · 2 building lots per hex</span>
         </div>
-        <span style="padding: 6px 12px; border-radius: 999px; border: 1px solid #2E4A5C; background: #12202A; color: #A9CBE6; font-size: 12px; font-weight: 600; letter-spacing: 0.04em">Direction B · Modern state</span>
+        <div role="group" aria-label="View" style="display: flex; padding: 4px; gap: 4px; border-radius: 10px; background: #161C24; border: 1px solid #2C3642">
+          <sc-for list="{{viewOpts}}" as="v" hint-placeholder-count="2">
+            <button type="button" aria-pressed="{{v.on}}" onClick="{{v.pick}}" style="height: 40px; padding: 0 14px; border-radius: 7px; border: 0; background: {{v.bg}}; color: {{v.fg}}; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px">
+              <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{v.icon}}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"></path></svg>
+              {{v.label}}
+            </button>
+          </sc-for>
+        </div>
       </div>
 
       <div style="flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center">
-        <div style="position: relative; width: {{boxW}}px; height: {{boxH}}px">
+        <div style="position: relative; width: {{boxW}}px; height: {{boxH}}px; transform-style: preserve-3d; transform: {{view.transform}}; transition: transform 0.5s ease">
           <sc-for list="{{hexes}}" as="h" hint-placeholder-count="7">
-            <button class="tile" type="button" aria-label="{{h.aria}}" onClick="{{h.place}}" style="position: absolute; left: {{h.x}}px; top: {{h.y}}px; width: {{hw}}px; height: {{hh}}px; padding: 0; border: 0; cursor: {{h.cursor}}; opacity: {{h.opacity}}; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); background: {{h.bg}}; color: #ECE9E2; font-family: inherit; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px">
-              <span style="font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: {{h.subtle}}">{{h.terrain}}</span>
-              <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 15px">{{h.name}}</span>
-              <sc-for list="{{h.slots}}" as="s" hint-placeholder-count="2">
-                <span style="width: 136px; height: 34px; box-sizing: border-box; padding: 0 10px; border-radius: 6px; border: 1px {{s.borderStyle}} {{s.border}}; background: {{s.bg}}; display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: {{s.fg}}">
-                  <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style="flex: none"><path d="{{s.icon}}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"></path></svg>
-                  <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{s.label}}</span>
-                </span>
-              </sc-for>
-            </button>
+            <div style="position: absolute; left: {{h.x}}px; top: {{h.y}}px; width: {{hw}}px; height: {{hh}}px; transform-style: preserve-3d">
+              <button class="tile" type="button" aria-label="{{h.aria}}" onClick="{{h.place}}" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%; padding: 0; border: 0; cursor: {{h.cursor}}; opacity: {{h.opacity}}; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); background: {{h.bg}}; color: #ECE9E2; font-family: inherit; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px">
+                <sc-if value="{{view.flat}}" hint-placeholder-val="{{false}}">
+                  <span style="font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: {{h.subtle}}">{{h.terrain}}</span>
+                  <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 15px">{{h.name}}</span>
+                  <sc-for list="{{h.slots}}" as="s" hint-placeholder-count="2">
+                    <span style="width: 136px; height: 34px; box-sizing: border-box; padding: 0 10px; border-radius: 6px; border: 1px {{s.borderStyle}} {{s.border}}; background: {{s.bg}}; display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: {{s.fg}}">
+                      <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style="flex: none"><path d="{{s.icon}}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"></path></svg>
+                      <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{s.label}}</span>
+                    </span>
+                  </sc-for>
+                </sc-if>
+                <sc-if value="{{view.tilted}}" hint-placeholder-val="{{true}}">
+                  <span aria-hidden="true" style="width: 64%; height: 64%; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); background: {{h.lot}}"></span>
+                </sc-if>
+              </button>
+              <sc-if value="{{view.tilted}}" hint-placeholder-val="{{true}}">
+                <div aria-hidden="true" style="position: absolute; left: 0; width: 100%; bottom: 46%; height: 110px; transform-origin: 50% 100%; transform: rotateX(-56deg); pointer-events: none; display: flex; align-items: flex-end; justify-content: center; gap: 0">
+                  <sc-for list="{{h.art}}" as="g" hint-placeholder-count="2">
+                    <div style="position: relative; width: 80px; height: 90px">
+                      <svg width="80" height="90" viewBox="0 0 80 90" style="display: block">
+                        <path d="{{g.d0}}" fill="{{g.f0}}"></path><path d="{{g.d1}}" fill="{{g.f1}}"></path><path d="{{g.d2}}" fill="{{g.f2}}"></path><path d="{{g.d3}}" fill="{{g.f3}}"></path><path d="{{g.d4}}" fill="{{g.f4}}"></path><path d="{{g.d5}}" fill="{{g.f5}}"></path><path d="{{g.d6}}" fill="{{g.f6}}"></path><path d="{{g.d7}}" fill="{{g.f7}}"></path>
+                      </svg>
+                      <sc-if value="{{g.fresh}}" hint-placeholder-val="{{false}}">
+                        <span style="position: absolute; left: 50%; top: -6px; transform: translateX(-50%); white-space: nowrap; padding: 2px 7px; border-radius: 4px; background: #E8A33D; color: #0E1217; font-size: 11px; font-weight: 700">{{g.turns}}</span>
+                      </sc-if>
+                    </div>
+                  </sc-for>
+                </div>
+                <div aria-hidden="true" style="position: absolute; left: 0; width: 100%; bottom: 14%; height: 26px; transform-origin: 50% 100%; transform: rotateX(-56deg); pointer-events: none; display: flex; justify-content: center">
+                  <span style="padding: 3px 9px; border-radius: 4px; background: rgba(14,18,23,0.88); font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 13px; white-space: nowrap">{{h.name}}</span>
+                </div>
+              </sc-if>
+            </div>
           </sc-for>
         </div>
       </div>
@@ -121,7 +152,7 @@ button:focus-visible,a:focus-visible{outline:2px solid #E8A33D;outline-offset:2p
 class Component extends DCLogic {
   constructor(props) {
     super(props);
-    this.state = { cat: 'inc', pick: 'port', added: [] };
+    this.state = { cat: 'inc', pick: 'port', added: [], tilted: true };
   }
   renderVals() {
     const I = {
@@ -158,6 +189,28 @@ class Component extends DCLogic {
       { id: 'clinic', cat: 'mor', name: 'Clinic', icon: I.clinic, cost: 120, turns: 2, fx: { mor: 4 }, desc: 'Fewer sick days, less unrest.' },
       { id: 'transit', cat: 'mor', name: 'Transit station', icon: I.transit, cost: 160, turns: 2, fx: { mor: 2, inc: 2 }, desc: 'Links this hex to the rest of the province.' }
     ];
+    const P = (d, f) => ({ d, f });
+    const rect = (x, y, w, h, f) => P('M' + x + ' ' + y + 'h' + w + 'v' + h + 'h' + (-w) + 'z', f);
+    const box = (x, y, w, h, c1, c2, c3) => [rect(x, y, w, h, c1), P('M' + (x + w) + ' ' + y + 'l7 -7v' + h + 'l-7 7z', c2), P('M' + x + ' ' + y + 'l7 -7h' + w + 'l-7 7z', c3)];
+    const circ = (cx, cy, r, f) => P('M' + (cx - r) + ' ' + cy + 'a' + r + ' ' + r + ' 0 1 0 ' + (2 * r) + ' 0a' + r + ' ' + r + ' 0 1 0 ' + (-2 * r) + ' 0z', f);
+    const shadow = P('M6 86a33 5 0 1 0 66 0a33 5 0 1 0 -66 0z', 'rgba(0,0,0,0.38)');
+    const C = { wall: '#D5DBE3', side: '#9AA5B3', top: '#EEF1F4', con: '#B7BFC9', cside: '#7F8A98', ctop: '#CDD3DA', roof: '#566577', win: '#F4C374', amber: '#E8A33D', teal: '#3FA7A0', dark: '#2B333D', white: '#F3F4F6' };
+    const ART = {
+      checkpoint: [shadow, ...box(10, 58, 22, 28, C.wall, C.side, C.top), rect(13, 63, 16, 8, C.win), rect(32, 66, 42, 4, C.amber), rect(70, 62, 4, 24, C.dark), rect(8, 54, 26, 4, C.roof)],
+      wall: [shadow, ...box(4, 52, 62, 34, C.con, C.cside, C.ctop), rect(4, 44, 10, 8, C.con), rect(24, 44, 10, 8, C.con), rect(44, 44, 10, 8, C.con), rect(4, 70, 62, 3, C.cside)],
+      garrison: [shadow, ...box(10, 46, 52, 40, C.con, C.cside, C.ctop), rect(30, 66, 12, 20, C.dark), rect(35, 14, 2, 32, C.dark), P('M37 14h16l-4 5 4 5h-16z', C.amber), rect(16, 54, 40, 5, C.win)],
+      water: [shadow, rect(16, 44, 40, 42, '#A9CBE6'), rect(48, 44, 8, 42, '#6E93B5'), P('M16 44a20 6 0 1 0 40 0a20 6 0 1 0 -40 0z', '#D3E5F3'), rect(16, 62, 40, 3, '#6E93B5'), rect(56, 74, 18, 5, C.dark), P('M36 50c4 5 5 7 5 9a5 5 0 0 1 -10 0c0-2 1-4 5-9z', '#3F7FB8')],
+      power: [shadow, ...box(4, 54, 40, 32, C.con, C.cside, C.ctop), rect(50, 20, 10, 66, '#C9CED5'), rect(50, 28, 10, 4, C.amber), rect(64, 36, 8, 50, '#C9CED5'), rect(10, 62, 28, 6, C.win)],
+      factory: [shadow, rect(6, 56, 62, 30, C.wall), P('M6 56l10 -14v14l10 -14v14l10 -14v14l10 -14v14l10 -14v14z', C.roof), P('M68 56l7 -7v30l-7 7z', C.side), rect(60, 22, 8, 34, '#C9CED5'), rect(60, 28, 8, 3, C.amber), rect(12, 66, 50, 6, C.win), rect(30, 74, 10, 12, C.dark)],
+      shop: [shadow, ...box(6, 52, 60, 34, C.wall, C.side, C.top), P('M4 52h64l-4 10h-56z', C.amber), P('M14 52l-2 10h6l2 -10zM30 52l-1 10h6l1 -10zM46 52v10h6v-10z', C.white), rect(12, 66, 22, 14, C.win), rect(42, 66, 12, 20, C.dark)],
+      bank: [shadow, rect(10, 54, 56, 22, C.cside), rect(6, 76, 64, 10, C.con), rect(6, 48, 64, 6, C.con), P('M4 48L38 30l34 18z', C.ctop), P('M12 54h6v22h-6zM24 54h6v22h-6zM46 54h6v22h-6zM58 54h6v22h-6z', C.white), rect(33, 62, 10, 14, C.amber)],
+      port: [shadow, rect(52, 14, 5, 72, C.amber), rect(20, 14, 54, 4, C.amber), rect(27, 18, 1.5, 32, C.dark), rect(6, 66, 26, 20, C.teal), rect(32, 70, 22, 16, '#C4607A'), rect(16, 50, 24, 14, '#8DB8E8')],
+      school: [shadow, ...box(8, 52, 58, 34, '#E9D9C4', '#B8A68E', '#F3E8D8'), P('M4 52L37 30l33 22z', C.roof), circ(37, 44, 5, C.white), rect(14, 60, 46, 7, C.win), rect(32, 72, 10, 14, C.dark)],
+      clinic: [shadow, ...box(8, 46, 58, 40, C.white, '#B9C2CC', '#FFFFFF'), P('M33 52h8v6h6v8h-6v6h-8v-6h-6v-8h6z', C.teal), rect(14, 76, 46, 5, '#A9CBE6')],
+      transit: [shadow, P('M2 54h72l-6 8h-60z', C.roof), P('M12 62h3v24h-3zM60 62h3v24h-3z', C.dark), ...box(18, 66, 40, 16, C.teal, '#2C7A74', '#6CC4BD'), rect(4, 84, 70, 2, C.dark), rect(22, 70, 30, 5, C.white)],
+      trees: [shadow, rect(23, 66, 4, 20, '#5B4636'), circ(25, 56, 13, '#4E8B5A'), rect(51, 70, 4, 16, '#5B4636'), circ(53, 62, 11, '#3F7349')]
+    };
+    const pad = (ps) => { const o = {}; for (let k = 0; k < 8; k++) { const q = ps[k] || P('', 'none'); o['d' + k] = q.d; o['f' + k] = q.f; } return o; };
     const byId = {}; B.forEach((b) => { byId[b.id] = b; });
     const R = 110, W = Math.sqrt(3) * R, H = 2 * R, G = 6;
     const tiles = [
@@ -182,6 +235,8 @@ class Component extends DCLogic {
       });
       return {
         x: (t.x + G / 2).toFixed(1), y: (t.y + G / 2).toFixed(1), name: t.name, terrain: t.terrain, slots,
+        art: contents[i].map((c) => ({ ...pad(ART[c.id]), fresh: c.fresh, turns: byId[c.id].turns + (byId[c.id].turns === 1 ? ' turn' : ' turns') })).concat(t.terrain === 'Forest' && contents[i].length === 0 ? [{ ...pad(ART.trees), fresh: false, turns: '' }] : []),
+        lot: ok ? 'rgba(232,163,61,0.35)' : 'rgba(255,255,255,0.05)',
         bg: ok ? '#4A3B22' : t.bg, subtle: '#C9CDD3',
         opacity: sel && !ok ? 0.5 : 1, cursor: ok ? 'pointer' : 'default',
         aria: t.terrain + ' hex ' + t.name + ', ' + contents[i].length + ' of 2 lots used' + (ok ? ', place ' + sel.name + ' here' : ''),
@@ -203,6 +258,11 @@ class Component extends DCLogic {
     return {
       boxW: Math.ceil(3 * W), boxH: Math.ceil(3 * R + H), hw: (W - G).toFixed(1), hh: (H - G).toFixed(1),
       hexes, items,
+      view: { tilted: s.tilted, flat: !s.tilted, transform: s.tilted ? 'perspective(1800px) rotateX(56deg)' : 'none' },
+      viewOpts: [
+        { label: 'Flat', on: !s.tilted, icon: 'M12 3l8 4.5v9L12 21l-8-4.5v-9z', pick: () => this.setState({ tilted: false }) },
+        { label: 'Tilted', on: s.tilted, icon: 'M3 15l9-5 9 5-9 5zM12 10V4M8 6l4-2 4 2', pick: () => this.setState({ tilted: true }) }
+      ].map((v) => ({ ...v, bg: v.on ? '#2A2418' : 'transparent', fg: v.on ? '#F4C374' : '#9AA4B1' })),
       cats: cats.map((c) => ({ ...c, on: s.cat === c.id, border: s.cat === c.id ? '#E8A33D' : '#2C3642', bg: s.cat === c.id ? '#2A2418' : 'transparent', fg: s.cat === c.id ? '#ECE9E2' : '#9AA4B1', pick: () => this.setState({ cat: c.id }) })),
       totals: ['def', 'sup', 'inc', 'mor'].map((k) => ({ k: label[k], v: fmt(sum[k]) })),
       treasury: (1240 - spent).toLocaleString('en-US'),
