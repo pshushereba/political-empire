@@ -1,0 +1,71 @@
+{
+  "color": {
+    "bg": { "app": "#0E1217", "map": "#0B0F14" },
+    "surface": { "header": "#12171E", "panel": "#161C24", "raised": "#1E2630", "selectedAmber": "#2A2418" },
+    "line": { "default": "#2C3642", "strong": "#3A4452" },
+    "text": { "primary": "#ECE9E2", "body": "#C9CDD3", "muted": "#9AA4B1", "onAccent": "#0E1217" },
+    "accent": { "default": "#E8A33D", "hover": "#F4C374" },
+    "effect": { "positive": "#7FD1A8", "negative": "#F0A07A", "info": "#8DB8E8" },
+    "nation": {
+      "veyra": "#E8A33D",
+      "ostmark": "#3FA7A0",
+      "kesh": "#C4607A",
+      "lune": "#8DB8E8",
+      "unclaimed": "#232B35",
+      "unclaimedSwatch": "#3A4452",
+      "sea": "#131C27"
+    },
+    "faction": {
+      "merchants": "#7FD1A8",
+      "settlers": "#8DB8E8",
+      "clergy": "#B9A6E0",
+      "dockworkers": "#F0A07A"
+    },
+    "foreignBanner": { "ostmark": { "bg": "#12211F", "border": "#24433F", "eyebrow": "#6FCBC3", "body": "#A9C3C0" } },
+    "district": {
+      "border": "rgba(232,163,61,0.55)",
+      "placeable": "#4A3B22",
+      "terrain": {
+        "capital": "#333A44",
+        "coast": "#1F3340",
+        "forest": "#22332A",
+        "farmland": "#30352A",
+        "river": "#1D3039",
+        "hills": "#2F3238",
+        "plains": "#2A3138"
+      }
+    }
+  },
+  "font": {
+    "display": "'Space Grotesk', sans-serif",
+    "body": "'IBM Plex Sans', system-ui, sans-serif",
+    "mono": "'IBM Plex Mono', monospace",
+    "googleFontsUrl": "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap"
+  },
+  "type": {
+    "pageTitle": { "family": "display", "weight": 700, "size": 40, "lineHeight": 1.05 },
+    "dilemmaTitle": { "family": "display", "weight": 700, "size": 44, "lineHeight": 1.05 },
+    "sectionTitle": { "family": "display", "weight": 700, "size": 18 },
+    "panelTitle": { "family": "display", "weight": 700, "size": 24, "lineHeight": 1.15 },
+    "wordmark": { "family": "display", "weight": 700, "size": 17, "letterSpacing": "0.08em" },
+    "body": { "family": "body", "weight": 400, "size": 15, "lineHeight": 1.5 },
+    "bodyLarge": { "family": "body", "weight": 400, "size": 17, "lineHeight": 1.6 },
+    "small": { "family": "body", "weight": 400, "size": 13 },
+    "eyebrow": { "family": "body", "weight": 400, "size": 11, "letterSpacing": "0.06em", "transform": "uppercase" },
+    "stat": { "family": "mono", "weight": 500, "size": 22 },
+    "statSmall": { "family": "mono", "weight": 500, "size": 15 }
+  },
+  "space": [4, 8, 12, 16, 20, 24, 32, 40, 56],
+  "radius": { "chip": 4, "control": 8, "card": 10, "outcome": 12, "pill": 999 },
+  "size": {
+    "header": 64,
+    "touchTarget": 44,
+    "primaryButton": 52,
+    "secondaryButton": 48,
+    "screen": { "w": 1440, "h": 900 },
+    "sidePanel": { "map": 360, "build": 420, "foundingPreview": 460 },
+    "hex": { "worldRadius": 38, "worldGap": 3, "districtRadius": 110, "districtGap": 6 }
+  },
+  "motion": { "hover": "filter 120ms ease", "tilt": "transform 500ms ease" },
+  "tilt": { "district": "perspective(1800px) rotateX(56deg)", "billboard": "rotateX(-56deg)" }
+}
