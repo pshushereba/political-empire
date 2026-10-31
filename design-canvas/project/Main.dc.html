@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>World map</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#E8A33D}a:hover{color:#F4C374}
+.hex{transition:filter .12s ease}
+.hex:hover{filter:brightness(1.25)}
+.hex:focus-visible{filter:brightness(1.4);outline:none}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; box-sizing: border-box; display: flex; flex-direction: column; background: #0E1217; color: #ECE9E2; font-family: 'IBM Plex Sans', system-ui, sans-serif; overflow: hidden">
+
+  <header style="height: 64px; box-sizing: border-box; padding: 0 24px; display: flex; align-items: center; gap: 28px; border-bottom: 1px solid #2C3642; background: #12171E">
+    <div style="display: flex; align-items: center; gap: 10px">
+      <svg width="26" height="28" viewBox="0 0 26 28" aria-hidden="true"><path d="M13 1 L25 7.5 V20.5 L13 27 L1 20.5 V7.5 Z" fill="none" stroke="#E8A33D" stroke-width="2"></path><path d="M13 8 L19 11.5 V17 L13 20.5 L7 17 V11.5 Z" fill="#E8A33D"></path></svg>
+      <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 17px; letter-spacing: 0.08em">POLITICAL EMPIRE</span>
+    </div>
+    <nav aria-label="Main" style="display: flex; gap: 4px">
+      <a href="Main.dc.html" aria-current="page" style="padding: 10px 14px; border-radius: 6px; background: #1E2630; color: #ECE9E2; text-decoration: none; font-size: 14px; font-weight: 600">Map</a>
+      <a href="Nation.dc.html" style="padding: 10px 14px; border-radius: 6px; color: #9AA4B1; text-decoration: none; font-size: 14px; font-weight: 500">Nation</a>
+      <a href="Dilemma.dc.html" style="padding: 10px 14px; border-radius: 6px; color: #9AA4B1; text-decoration: none; font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 8px">Council <span style="min-width: 20px; height: 20px; border-radius: 10px; background: #E8A33D; color: #0E1217; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center">2</span></a>
+      <a href="Foreign.dc.html" style="padding: 10px 14px; border-radius: 6px; color: #9AA4B1; text-decoration: none; font-size: 14px; font-weight: 500">Diplomacy</a>
+    </nav>
+    <div style="flex: 1"></div>
+    <dl style="margin: 0; display: flex; gap: 24px; font-size: 13px">
+      <div style="display: flex; flex-direction: column; gap: 2px"><dt style="color: #9AA4B1; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase">Treasury</dt><dd style="margin: 0; font-family: 'IBM Plex Mono', monospace">1,240</dd></div>
+      <div style="display: flex; flex-direction: column; gap: 2px"><dt style="color: #9AA4B1; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase">Stability</dt><dd style="margin: 0; font-family: 'IBM Plex Mono', monospace">68%</dd></div>
+      <div style="display: flex; flex-direction: column; gap: 2px"><dt style="color: #9AA4B1; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase">Influence</dt><dd style="margin: 0; font-family: 'IBM Plex Mono', monospace">42</dd></div>
+      <div style="display: flex; flex-direction: column; gap: 2px"><dt style="color: #9AA4B1; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase">Population</dt><dd style="margin: 0; font-family: 'IBM Plex Mono', monospace">3.2M</dd></div>
+    </dl>
+    <div style="padding-left: 24px; border-left: 1px solid #2C3642; display: flex; flex-direction: column; gap: 2px">
+      <span style="color: #9AA4B1; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase">Second Era</span>
+      <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 15px">Turn 14</span>
+    </div>
+  </header>
+
+  <div style="flex: 1; display: flex; min-height: 0">
+    <main style="flex: 1; position: relative; display: flex; align-items: center; justify-content: center; background: #0B0F14">
+      <div style="position: relative; width: {{gridW}}px; height: {{gridH}}px">
+        <sc-for list="{{hexes}}" as="h" hint-placeholder-count="140">
+          <button class="hex" type="button" aria-label="{{h.label}}" aria-pressed="{{h.selected}}" onClick="{{h.pick}}" style="position: absolute; left: {{h.x}}px; top: {{h.y}}px; width: {{hw}}px; height: {{hh}}px; padding: 0; border: 0; cursor: pointer; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); background: {{h.fill}}; display: flex; align-items: center; justify-content: center">
+            <sc-if value="{{h.capital}}" hint-placeholder-val="{{false}}">
+              <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z" fill="#0E1217"></path></svg>
+            </sc-if>
+          </button>
+        </sc-for>
+        <div aria-hidden="true" style="position: absolute; left: {{ring.x}}px; top: {{ring.y}}px; width: {{ring.w}}px; height: {{ring.h}}px; pointer-events: none; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%, 0 25%, 4px 26.5%, 4px 73.5%, 50% calc(100% - 4px), calc(100% - 4px) 73.5%, calc(100% - 4px) 26.5%, 50% 4px, 4px 26.5%, 0 25%); background: #FFFFFF"></div>
+        <svg aria-hidden="true" width="{{gridW}}" height="{{gridH}}" style="position: absolute; left: 0; top: 0; pointer-events: none">
+          <line x1="{{route.x1}}" y1="{{route.y1}}" x2="{{route.x2}}" y2="{{route.y2}}" stroke="#ECE9E2" stroke-width="2" stroke-dasharray="4 6" stroke-linecap="round"></line>
+        </svg>
+        <sc-for list="{{labels}}" as="l" hint-placeholder-count="4">
+          <span aria-hidden="true" style="position: absolute; left: {{l.x}}px; top: {{l.y}}px; transform: translate(-50%, 0); pointer-events: none; white-space: nowrap; padding: 3px 8px; border-radius: 4px; background: rgba(14,18,23,0.88); color: {{l.color}}; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase">{{l.name}}</span>
+        </sc-for>
+        <div aria-hidden="true" style="position: absolute; left: {{token.x}}px; top: {{token.y}}px; width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%; background: #ECE9E2; border: 3px solid #0E1217; box-shadow: 0 0 0 2px #ECE9E2; display: flex; align-items: center; justify-content: center; pointer-events: none">
+          <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4M5 4h11l-2 4 2 4H5" fill="none" stroke="#0E1217" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"></path></svg>
+        </div>
+      </div>
+
+      <div style="position: absolute; left: 24px; bottom: 24px; padding: 14px 16px; border-radius: 8px; background: rgba(22,28,36,0.94); border: 1px solid #2C3642; display: flex; flex-direction: column; gap: 8px; font-size: 13px">
+        <span style="color: #9AA4B1; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase">Nations</span>
+        <div style="display: flex; align-items: center; gap: 8px"><span style="width: 12px; height: 12px; border-radius: 3px; background: #E8A33D"></span>Republic of Veyra <span style="color: #9AA4B1">(you)</span></div>
+        <div style="display: flex; align-items: center; gap: 8px"><span style="width: 12px; height: 12px; border-radius: 3px; background: #3FA7A0"></span>Ostmark Union</div>
+        <div style="display: flex; align-items: center; gap: 8px"><span style="width: 12px; height: 12px; border-radius: 3px; background: #C4607A"></span>Kesh Directorate</div>
+        <div style="display: flex; align-items: center; gap: 8px"><span style="width: 12px; height: 12px; border-radius: 3px; background: #8DB8E8"></span>Free Cities of Lune</div>
+        <div style="display: flex; align-items: center; gap: 8px"><span style="width: 12px; height: 12px; border-radius: 3px; background: #3A4452"></span>Unclaimed</div>
+      </div>
+
+      <div style="position: absolute; right: 24px; bottom: 24px; display: flex; gap: 8px">
+        <button type="button" aria-label="Zoom out" style="width: 44px; height: 44px; border-radius: 8px; border: 1px solid #2C3642; background: #161C24; color: #ECE9E2; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg></button>
+        <button type="button" aria-label="Zoom in" style="width: 44px; height: 44px; border-radius: 8px; border: 1px solid #2C3642; background: #161C24; color: #ECE9E2; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5v14" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg></button>
+        <button type="button" aria-label="Center on your envoy" onClick="{{centerHome}}" style="width: 44px; height: 44px; border-radius: 8px; border: 1px solid #2C3642; background: #161C24; color: #ECE9E2; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2"></circle><circle cx="12" cy="12" r="2" fill="currentColor"></circle></svg></button>
+      </div>
+    </main>
+
+    <aside aria-label="Selected hex" style="width: 360px; box-sizing: border-box; border-left: 1px solid #2C3642; background: #161C24; display: flex; flex-direction: column">
+      <section style="padding: 24px; display: flex; flex-direction: column; gap: 16px; border-bottom: 1px solid #2C3642">
+        <div style="display: flex; align-items: center; justify-content: space-between">
+          <span style="color: #9AA4B1; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase">Selected hex · {{sel.coord}}</span>
+          <span style="font-size: 12px; color: #9AA4B1">{{sel.terrain}}</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px">
+          <span style="width: 16px; height: 16px; border-radius: 4px; background: {{sel.color}}"></span>
+          <h2 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 24px; line-height: 1.15">{{sel.owner}}</h2>
+        </div>
+        <dl style="margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+          <div style="padding: 12px; border-radius: 6px; background: #1E2630; display: flex; flex-direction: column; gap: 4px"><dt style="color: #9AA4B1; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase">Population</dt><dd style="margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 15px">{{sel.pop}}</dd></div>
+          <div style="padding: 12px; border-radius: 6px; background: #1E2630; display: flex; flex-direction: column; gap: 4px"><dt style="color: #9AA4B1; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase">Stance to you</dt><dd style="margin: 0; font-size: 15px">{{sel.stance}}</dd></div>
+          <div style="padding: 12px; border-radius: 6px; background: #1E2630; display: flex; flex-direction: column; gap: 4px"><dt style="color: #9AA4B1; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase">Distance</dt><dd style="margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 15px">{{sel.dist}}</dd></div>
+          <div style="padding: 12px; border-radius: 6px; background: #1E2630; display: flex; flex-direction: column; gap: 4px"><dt style="color: #9AA4B1; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase">Travel time</dt><dd style="margin: 0; font-family: 'IBM Plex Mono', monospace; font-size: 15px">{{sel.turns}}</dd></div>
+        </dl>
+        <button type="button" onClick="{{move}}" disabled="{{sel.cantMove}}" style="height: 48px; border-radius: 8px; border: 0; background: {{sel.moveBg}}; color: {{sel.moveFg}}; font-family: inherit; font-weight: 600; font-size: 15px; cursor: pointer">{{sel.moveLabel}}</button>
+        <sc-if value="{{sel.foreign}}" hint-placeholder-val="{{true}}">
+          <a href="Foreign.dc.html" style="height: 48px; border-radius: 8px; border: 1px solid #2C3642; display: flex; align-items: center; justify-content: center; text-decoration: none; color: #ECE9E2; font-weight: 600; font-size: 15px">View {{sel.owner}}</a>
+        </sc-if>
+        <sc-if value="{{sel.mine}}" hint-placeholder-val="{{false}}">
+          <a href="Nation.dc.html" style="height: 48px; border-radius: 8px; border: 1px solid #2C3642; display: flex; align-items: center; justify-content: center; text-decoration: none; color: #ECE9E2; font-weight: 600; font-size: 15px">Open nation ledger</a>
+        </sc-if>
+      </section>
+
+      <section style="padding: 24px; display: flex; flex-direction: column; gap: 12px; flex: 1">
+        <span style="color: #9AA4B1; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase">Awaiting your decision</span>
+        <a href="Dilemma.dc.html" style="padding: 16px; border-radius: 8px; background: #1E2630; border: 1px solid #3A4452; text-decoration: none; color: #ECE9E2; display: flex; flex-direction: column; gap: 6px">
+          <span style="font-size: 12px; color: #E8A33D; font-weight: 600">Labour · Urgent</span>
+          <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 17px">The Saline Docks strike</span>
+          <span style="font-size: 13px; color: #9AA4B1; line-height: 1.45">Dockworkers have shut the capital's port. Trade stops until you act.</span>
+        </a>
+        <a href="Dilemma.dc.html" style="padding: 16px; border-radius: 8px; background: #1E2630; border: 1px solid #2C3642; text-decoration: none; color: #ECE9E2; display: flex; flex-direction: column; gap: 6px">
+          <span style="font-size: 12px; color: #9AA4B1; font-weight: 600">Diplomacy · 3 turns left</span>
+          <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 17px">Ostmark asks for river rights</span>
+        </a>
+        <div style="flex: 1"></div>
+        <button type="button" style="height: 52px; border-radius: 8px; border: 0; background: #E8A33D; color: #0E1217; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 16px; letter-spacing: 0.04em; cursor: pointer">End turn 14</button>
+      </section>
+    </aside>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { sel: { c: 8, r: 3 }, token: { c: 5, r: 5 } };
+  }
+  renderVals() {
+    const R = 38, W = Math.sqrt(3) * R, H = 2 * R, VS = 1.5 * R, COLS = 14, ROWS = 10, G = 3;
+    const nations = {
+      veyra: { name: 'Republic of Veyra', short: 'Veyra', rgb: [232, 163, 61], stance: 'Your nation', color: '#E8A33D' },
+      ostmark: { name: 'Ostmark Union', short: 'Ostmark', rgb: [63, 167, 160], stance: 'Cordial', color: '#3FA7A0' },
+      kesh: { name: 'Kesh Directorate', short: 'Kesh', rgb: [196, 96, 122], stance: 'Hostile', color: '#C4607A' },
+      lune: { name: 'Free Cities of Lune', short: 'Lune', rgb: [141, 184, 232], stance: 'Wary', color: '#8DB8E8' }
+    };
+    const seeds = [
+      { id: 'veyra', c: 5, r: 5, rad: 3 },
+      { id: 'ostmark', c: 10, r: 2, rad: 2 },
+      { id: 'kesh', c: 11, r: 7, rad: 2 },
+      { id: 'lune', c: 2, r: 1, rad: 2 }
+    ];
+    const cube = (c, r) => ({ q: c - (r - (r & 1)) / 2, r });
+    const dist = (a, b) => { const A = cube(a.c, a.r), B = cube(b.c, b.r); const dq = A.q - B.q, dr = A.r - B.r; return (Math.abs(dq) + Math.abs(dr) + Math.abs(dq + dr)) / 2; };
+    const isWater = (c, r) => (c <= 1 && r >= 6) || (r === 9 && c <= 6) || (c === 13 && r <= 3) || (c === 0 && r >= 3);
+    const terrains = ['Plains', 'Forest', 'Hills', 'Highlands', 'Farmland'];
+    const hash = (c, r) => (((c * 73856093) ^ (r * 19349663)) >>> 0);
+    const pos = (c, r) => ({ x: c * W + ((r & 1) ? W / 2 : 0), y: r * VS });
+    const info = (c, r) => {
+      if (isWater(c, r)) return { kind: 'water' };
+      let best = null;
+      seeds.forEach((s) => { const d = dist({ c, r }, s); if (d <= s.rad && (!best || d < best.d)) best = { id: s.id, d, capital: d === 0 }; });
+      return best ? { kind: 'owned', ...best } : { kind: 'free' };
+    };
+    const { sel, token } = this.state;
+    const hexes = [];
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const p = pos(c, r), i = info(c, r), n = i.id ? nations[i.id] : null;
+        let fill = '#232B35';
+        if (i.kind === 'water') fill = '#131C27';
+        else if (n) { const a = i.capital ? 1 : (i.id === 'veyra' ? 0.8 : 0.58); fill = 'rgba(' + n.rgb.join(',') + ',' + a + ')'; }
+        const terrain = i.kind === 'water' ? 'Sea' : terrains[hash(c, r) % 5];
+        hexes.push({
+          x: (p.x + G / 2).toFixed(1), y: (p.y + G / 2).toFixed(1), fill, capital: !!i.capital,
+          selected: sel.c === c && sel.r === r,
+          label: terrain + ', ' + (n ? n.name : (i.kind === 'water' ? 'open sea' : 'unclaimed')) + (i.capital ? ', capital' : ''),
+          pick: () => this.setState({ sel: { c, r } })
+        });
+      }
+    }
+    const labels = seeds.map((s) => { const p = pos(s.c, s.r); return { x: (p.x + W / 2).toFixed(1), y: (p.y + H - 6).toFixed(1), name: nations[s.id].short, color: nations[s.id].color }; });
+    const sp = pos(sel.c, sel.r), tp = pos(token.c, token.r);
+    const si = info(sel.c, sel.r), sn = si.id ? nations[si.id] : null, d = dist(sel, token);
+    const water = si.kind === 'water', here = d === 0, h = hash(sel.c, sel.r);
+    const pop = water ? '—' : (si.kind === 'free' ? ((h % 9) + 1) + 'k' : (si.capital ? '1.1M' : ((h % 80) + 20) * 5 + 'k'));
+    return {
+      gridW: Math.ceil(COLS * W + W / 2), gridH: Math.ceil((ROWS - 1) * VS + H),
+      hw: (W - G).toFixed(1), hh: (H - G).toFixed(1),
+      hexes, labels,
+      ring: { x: (sp.x - 1).toFixed(1), y: (sp.y - 1).toFixed(1), w: (W + 2).toFixed(1), h: (H + 2).toFixed(1) },
+      token: { x: (tp.x + W / 2).toFixed(1), y: (tp.y + H / 2).toFixed(1) },
+      route: { x1: tp.x + W / 2, y1: tp.y + H / 2, x2: sp.x + W / 2, y2: sp.y + H / 2 },
+      sel: {
+        coord: String(sel.c).padStart(2, '0') + '·' + String(sel.r).padStart(2, '0'),
+        terrain: water ? 'Sea' : terrains[h % 5],
+        owner: sn ? sn.name : (water ? 'Open sea' : 'Unclaimed land'),
+        color: sn ? sn.color : (water ? '#131C27' : '#3A4452'),
+        stance: sn ? sn.stance : '—',
+        pop, dist: here ? 'Envoy is here' : d + (d === 1 ? ' hex' : ' hexes'),
+        turns: here ? '—' : Math.ceil(d / 2) + (Math.ceil(d / 2) === 1 ? ' turn' : ' turns'),
+        cantMove: water || here,
+        moveLabel: water ? 'Envoys cannot cross open sea' : (here ? 'Your envoy is here' : 'Move envoy here'),
+        moveBg: (water || here) ? '#2C3642' : '#ECE9E2', moveFg: (water || here) ? '#9AA4B1' : '#0E1217',
+        foreign: !!sn && si.id !== 'veyra', mine: si.id === 'veyra'
+      },
+      move: () => { if (!water && !here) this.setState({ token: { c: sel.c, r: sel.r } }); },
+      centerHome: () => this.setState({ sel: { c: 5, r: 5 }, token: { c: 5, r: 5 } })
+    };
+  }
+}
+</script>
+</body>
+</html>
