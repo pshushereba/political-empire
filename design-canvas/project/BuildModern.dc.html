@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Build on your land: modern state</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#E8A33D}a:hover{color:#F4C374}
+button:focus-visible,a:focus-visible{outline:2px solid #E8A33D;outline-offset:2px}
+.tile{transition:filter .12s ease,opacity .12s ease}
+.tile:hover{filter:brightness(1.15)}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; box-sizing: border-box; display: flex; flex-direction: column; background: #0E1217; color: #ECE9E2; font-family: 'IBM Plex Sans', system-ui, sans-serif; overflow: hidden">
+
+  <header style="height: 64px; box-sizing: border-box; padding: 0 24px; display: flex; align-items: center; gap: 28px; border-bottom: 1px solid #2C3642; background: #12171E">
+    <div style="display: flex; align-items: center; gap: 10px">
+      <svg width="26" height="28" viewBox="0 0 26 28" aria-hidden="true"><path d="M13 1 L25 7.5 V20.5 L13 27 L1 20.5 V7.5 Z" fill="none" stroke="#E8A33D" stroke-width="2"></path><path d="M13 8 L19 11.5 V17 L13 20.5 L7 17 V11.5 Z" fill="#E8A33D"></path></svg>
+      <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 17px; letter-spacing: 0.08em">POLITICAL EMPIRE</span>
+    </div>
+    <nav aria-label="Main" style="display: flex; gap: 4px">
+      <a href="Main.dc.html" aria-current="page" style="padding: 10px 14px; border-radius: 6px; background: #1E2630; color: #ECE9E2; text-decoration: none; font-size: 14px; font-weight: 600">Map</a>
+      <a href="Nation.dc.html" style="padding: 10px 14px; border-radius: 6px; color: #9AA4B1; text-decoration: none; font-size: 14px; font-weight: 500">Nation</a>
+      <a href="Dilemma.dc.html" style="padding: 10px 14px; border-radius: 6px; color: #9AA4B1; text-decoration: none; font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 8px">Council <span style="min-width: 20px; height: 20px; border-radius: 10px; background: #E8A33D; color: #0E1217; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center">2</span></a>
+      <a href="Foreign.dc.html" style="padding: 10px 14px; border-radius: 6px; color: #9AA4B1; text-decoration: none; font-size: 14px; font-weight: 500">Diplomacy</a>
+    </nav>
+    <div style="flex: 1"></div>
+    <dl style="margin: 0; display: flex; gap: 24px; font-size: 13px">
+      <div style="display: flex; flex-direction: column; gap: 2px"><dt style="color: #9AA4B1; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase">Treasury</dt><dd style="margin: 0; font-family: 'IBM Plex Mono', monospace">{{treasury}}</dd></div>
+    </dl>
+    <div style="padding-left: 24px; border-left: 1px solid #2C3642; display: flex; flex-direction: column; gap: 2px">
+      <span style="color: #9AA4B1; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase">Second Era</span>
+      <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 15px">Turn 14</span>
+    </div>
+  </header>
+
+  <div style="flex: 1; display: flex; min-height: 0">
+    <main style="flex: 1; min-width: 0; display: flex; flex-direction: column; background: #0B0F14">
+      <div style="padding: 24px 32px 0; display: flex; align-items: flex-end; justify-content: space-between; gap: 16px">
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <a href="Main.dc.html" style="font-size: 13px; font-weight: 600; text-decoration: none">← World map</a>
+          <h1 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 30px">Saline District</h1>
+          <span style="font-size: 14px; color: #9AA4B1">7 hexes · 2 building lots per hex</span>
+        </div>
+        <span style="padding: 6px 12px; border-radius: 999px; border: 1px solid #2E4A5C; background: #12202A; color: #A9CBE6; font-size: 12px; font-weight: 600; letter-spacing: 0.04em">Direction B · Modern state</span>
+      </div>
+
+      <div style="flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center">
+        <div style="position: relative; width: {{boxW}}px; height: {{boxH}}px">
+          <sc-for list="{{hexes}}" as="h" hint-placeholder-count="7">
+            <button class="tile" type="button" aria-label="{{h.aria}}" onClick="{{h.place}}" style="position: absolute; left: {{h.x}}px; top: {{h.y}}px; width: {{hw}}px; height: {{hh}}px; padding: 0; border: 0; cursor: {{h.cursor}}; opacity: {{h.opacity}}; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); background: {{h.bg}}; color: #ECE9E2; font-family: inherit; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px">
+              <span style="font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: {{h.subtle}}">{{h.terrain}}</span>
+              <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 15px">{{h.name}}</span>
+              <sc-for list="{{h.slots}}" as="s" hint-placeholder-count="2">
+                <span style="width: 136px; height: 34px; box-sizing: border-box; padding: 0 10px; border-radius: 6px; border: 1px {{s.borderStyle}} {{s.border}}; background: {{s.bg}}; display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: {{s.fg}}">
+                  <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style="flex: none"><path d="{{s.icon}}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"></path></svg>
+                  <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{s.label}}</span>
+                </span>
+              </sc-for>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="margin: 0 32px 24px; padding: 14px 20px; border-radius: 10px; background: #161C24; border: 1px solid #2C3642; display: flex; align-items: center; gap: 32px">
+        <span style="color: #9AA4B1; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase">District output</span>
+        <sc-for list="{{totals}}" as="t" hint-placeholder-count="4">
+          <div style="display: flex; flex-direction: column; gap: 2px">
+            <span style="font-size: 12px; color: #9AA4B1">{{t.k}}</span>
+            <span style="font-family: 'IBM Plex Mono', monospace; font-size: 18px">{{t.v}}</span>
+          </div>
+        </sc-for>
+        <div style="flex: 1"></div>
+        <span style="font-size: 13px; color: #9AA4B1">{{queued}}</span>
+        <button type="button" onClick="{{clear}}" style="height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid #3A4452; background: transparent; color: #ECE9E2; font-family: inherit; font-weight: 600; cursor: pointer">Undo new builds</button>
+      </div>
+    </main>
+
+    <aside aria-label="Build menu" style="width: 420px; box-sizing: border-box; border-left: 1px solid #2C3642; background: #161C24; display: flex; flex-direction: column; min-height: 0">
+      <div style="padding: 24px 24px 16px; display: flex; flex-direction: column; gap: 14px; border-bottom: 1px solid #2C3642">
+        <h2 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 20px">Build</h2>
+        <div role="tablist" aria-label="Building types" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px">
+          <sc-for list="{{cats}}" as="c" hint-placeholder-count="4">
+            <button type="button" role="tab" aria-selected="{{c.on}}" onClick="{{c.pick}}" style="height: 44px; border-radius: 8px; border: 1px solid {{c.border}}; background: {{c.bg}}; color: {{c.fg}}; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer">{{c.name}}</button>
+          </sc-for>
+        </div>
+      </div>
+      <div role="tabpanel" style="flex: 1; min-height: 0; overflow-y: auto; padding: 16px 24px; display: flex; flex-direction: column; gap: 10px">
+        <sc-for list="{{items}}" as="b" hint-placeholder-count="3">
+          <button type="button" aria-pressed="{{b.on}}" onClick="{{b.pick}}" style="text-align: left; padding: 14px; border-radius: 10px; border: 1px solid {{b.border}}; background: {{b.bg}}; color: #ECE9E2; font-family: inherit; cursor: pointer; display: flex; gap: 14px; align-items: flex-start">
+            <span aria-hidden="true" style="width: 44px; height: 44px; flex: none; border-radius: 8px; background: #16242E; color: #A9CBE6; display: flex; align-items: center; justify-content: center">
+              <svg width="24" height="24" viewBox="0 0 24 24"><path d="{{b.icon}}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"></path></svg>
+            </span>
+            <span style="flex: 1; display: flex; flex-direction: column; gap: 6px">
+              <span style="display: flex; justify-content: space-between; gap: 8px"><span style="font-weight: 600; font-size: 15px">{{b.name}}</span><span style="font-family: 'IBM Plex Mono', monospace; font-size: 13px">{{b.cost}}</span></span>
+              <span style="font-size: 13px; color: #9AA4B1; line-height: 1.4">{{b.desc}}</span>
+              <span style="display: flex; flex-wrap: wrap; gap: 6px">
+                <sc-for list="{{b.chips}}" as="e" hint-placeholder-count="2">
+                  <span style="padding: 2px 8px; border-radius: 4px; background: #1E2630; font-size: 12px; color: {{e.color}}">{{e.t}}</span>
+                </sc-for>
+                <span style="padding: 2px 8px; border-radius: 4px; background: #1E2630; font-size: 12px; color: #9AA4B1">{{b.turns}}</span>
+                <sc-if value="{{b.hasNeed}}" hint-placeholder-val="{{false}}"><span style="padding: 2px 8px; border-radius: 4px; border: 1px solid #3A4452; font-size: 12px; color: #C9CDD3">Needs {{b.needs}}</span></sc-if>
+              </span>
+            </span>
+          </button>
+        </sc-for>
+      </div>
+      <div style="padding: 16px 24px 24px; border-top: 1px solid #2C3642; font-size: 14px; color: #C9CDD3; line-height: 1.5">{{hint}}</div>
+    </aside>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { cat: 'inc', pick: 'port', added: [] };
+  }
+  renderVals() {
+    const I = {
+      wall: 'M2 20h20M4 20V10h16v10M4 14h16M9 10v4M15 10v4M7 14v6M12 14v6M17 14v6',
+      checkpoint: 'M4 21V7h4v14M8 10h13M4 4h4M2 21h8',
+      garrison: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM9 12l2 2 4-4',
+      shop: 'M3 9l2-5h14l2 5M4 9v12h16V9M3 9h18M9 21v-6h6v6',
+      bank: 'M3 10l9-6 9 6M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 21h18',
+      port: 'M12 6v15M8 10h8M5 15a7 7 0 0 0 14 0M12 6a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z',
+      factory: 'M3 21V11l5 3v-3l5 3v-3l5 3V4h3v17zM7 18h2M12 18h2',
+      power: 'M13 2L4 14h7l-1 8 9-12h-7z',
+      water: 'M12 3c4 5 6 8 6 11a6 6 0 0 1-12 0c0-3 2-6 6-11z',
+      school: 'M2 9l10-5 10 5-10 5zM6 11v5c3 2 9 2 12 0v-5',
+      clinic: 'M9 3h6v6h6v6h-6v6H9v-6H3V9h6z',
+      transit: 'M6 3h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM4 11h16M8 21l2-4M16 21l-2-4'
+    };
+    const cats = [
+      { id: 'def', name: 'Security' },
+      { id: 'sup', name: 'Utilities' },
+      { id: 'inc', name: 'Commerce' },
+      { id: 'mor', name: 'Services' }
+    ];
+    const B = [
+      { id: 'checkpoint', cat: 'def', name: 'Border checkpoint', icon: I.checkpoint, cost: 70, turns: 1, fx: { def: 2, inc: 1 }, desc: 'Controls who crosses. Collects tariffs on the way.' },
+      { id: 'wall', cat: 'def', name: 'Fortified wall', icon: I.wall, cost: 200, turns: 3, fx: { def: 6, mor: -1 }, desc: 'Reinforced concrete. Safe, but it makes neighbours nervous.' },
+      { id: 'garrison', cat: 'def', name: 'Garrison', icon: I.garrison, cost: 260, turns: 3, fx: { def: 7 }, desc: 'A standing force that answers to the capital.' },
+      { id: 'water', cat: 'sup', name: 'Water works', icon: I.water, cost: 120, turns: 2, fx: { sup: 4, mor: 1 }, desc: 'Clean water lets the city grow.', needs: 'River' },
+      { id: 'power', cat: 'sup', name: 'Power station', icon: I.power, cost: 220, turns: 3, fx: { sup: 5, mor: -1 }, desc: 'Powers every business in the province.' },
+      { id: 'factory', cat: 'sup', name: 'Factory', icon: I.factory, cost: 180, turns: 3, fx: { sup: 3, inc: 3, mor: -1 }, desc: 'Jobs and goods. The Dockworkers want a say in it.' },
+      { id: 'shop', cat: 'inc', name: 'Market street', icon: I.shop, cost: 90, turns: 1, fx: { inc: 3, mor: 1 }, desc: 'Small businesses for the local population.' },
+      { id: 'bank', cat: 'inc', name: 'Bank', icon: I.bank, cost: 300, turns: 3, fx: { inc: 6 }, desc: 'Loans for merchants. The Merchant Houses approve.', needs: 'Capital' },
+      { id: 'port', cat: 'inc', name: 'Port terminal', icon: I.port, cost: 260, turns: 4, fx: { inc: 5, sup: 2 }, desc: 'Ships from Ostmark and Lune dock here.', needs: 'Coast' },
+      { id: 'school', cat: 'mor', name: 'School', icon: I.school, cost: 140, turns: 2, fx: { mor: 3, inc: 1 }, desc: 'A literate people grows faster.' },
+      { id: 'clinic', cat: 'mor', name: 'Clinic', icon: I.clinic, cost: 120, turns: 2, fx: { mor: 4 }, desc: 'Fewer sick days, less unrest.' },
+      { id: 'transit', cat: 'mor', name: 'Transit station', icon: I.transit, cost: 160, turns: 2, fx: { mor: 2, inc: 2 }, desc: 'Links this hex to the rest of the province.' }
+    ];
+    const byId = {}; B.forEach((b) => { byId[b.id] = b; });
+    const R = 110, W = Math.sqrt(3) * R, H = 2 * R, G = 6;
+    const tiles = [
+      { name: 'Saline', terrain: 'Capital', x: W, y: 1.5 * R, bg: '#333A44', base: ['bank', 'shop'] },
+      { name: 'Gull Point', terrain: 'Coast', x: 2 * W, y: 1.5 * R, bg: '#1F3340', base: ['checkpoint'] },
+      { name: 'Ashwood', terrain: 'Forest', x: 1.5 * W, y: 0, bg: '#22332A', base: [] },
+      { name: 'Brenfield', terrain: 'Farmland', x: 0.5 * W, y: 0, bg: '#30352A', base: ['factory'] },
+      { name: 'Millrace', terrain: 'River', x: 0, y: 1.5 * R, bg: '#1D3039', base: ['water'] },
+      { name: 'Corrie Tor', terrain: 'Hills', x: 0.5 * W, y: 3 * R, bg: '#2F3238', base: [] },
+      { name: 'Westmoor', terrain: 'Plains', x: 1.5 * W, y: 3 * R, bg: '#2A3138', base: [] }
+    ];
+    const s = this.state;
+    const sel = s.pick ? byId[s.pick] : null;
+    const contents = tiles.map((t, i) => t.base.map((id) => ({ id, fresh: false })).concat(s.added.filter((a) => a.tile === i).map((a) => ({ id: a.id, fresh: true }))));
+    const canPlace = (i) => sel && contents[i].length < 2 && (!sel.needs || sel.needs === tiles[i].terrain) && !(sel.id === 'keep' && contents.some((c) => c.some((x) => x.id === 'keep')));
+    const hexes = tiles.map((t, i) => {
+      const ok = canPlace(i);
+      const slots = [0, 1].map((k) => {
+        const c = contents[i][k];
+        if (c) { const b = byId[c.id]; return { label: b.name + (c.fresh ? ' · new' : ''), icon: b.icon, border: c.fresh ? '#E8A33D' : 'rgba(236,233,226,0.25)', borderStyle: 'solid', bg: 'rgba(14,18,23,0.72)', fg: '#ECE9E2' }; }
+        return { label: ok ? 'Place ' + sel.name : 'Empty lot', icon: 'M12 6v12M6 12h12', border: ok ? '#E8A33D' : 'rgba(236,233,226,0.3)', borderStyle: 'dashed', bg: ok ? 'rgba(232,163,61,0.16)' : 'transparent', fg: ok ? '#F4C374' : '#B3BAC4' };
+      });
+      return {
+        x: (t.x + G / 2).toFixed(1), y: (t.y + G / 2).toFixed(1), name: t.name, terrain: t.terrain, slots,
+        bg: ok ? '#4A3B22' : t.bg, subtle: '#C9CDD3',
+        opacity: sel && !ok ? 0.5 : 1, cursor: ok ? 'pointer' : 'default',
+        aria: t.terrain + ' hex ' + t.name + ', ' + contents[i].length + ' of 2 lots used' + (ok ? ', place ' + sel.name + ' here' : ''),
+        place: () => { if (canPlace(i)) this.setState({ added: s.added.concat([{ tile: i, id: sel.id }]) }); }
+      };
+    });
+    const sum = { def: 0, sup: 0, inc: 0, mor: 0 };
+    contents.forEach((c) => c.forEach((x) => { const f = byId[x.id].fx; Object.keys(f).forEach((k) => { sum[k] += f[k]; }); }));
+    const spent = s.added.reduce((n, a) => n + byId[a.id].cost, 0);
+    const label = { def: 'Security', sup: 'Supply', inc: 'Revenue', mor: 'Approval' };
+    const fmt = (v) => (v > 0 ? '+' : '−') + Math.abs(v);
+    const items = B.filter((b) => b.cat === s.cat).map((b) => ({
+      ...b, cost: b.cost, turns: b.turns + (b.turns === 1 ? ' turn' : ' turns'), hasNeed: !!b.needs,
+      chips: Object.keys(b.fx).map((k) => ({ t: label[k] + ' ' + fmt(b.fx[k]), color: b.fx[k] > 0 ? '#7FD1A8' : '#F0A07A' })),
+      on: s.pick === b.id, border: s.pick === b.id ? '#E8A33D' : '#2C3642', bg: s.pick === b.id ? '#2A2418' : '#1E2630',
+      pick: () => this.setState({ pick: s.pick === b.id ? null : b.id })
+    }));
+    const okCount = tiles.filter((t, i) => canPlace(i)).length;
+    return {
+      boxW: Math.ceil(3 * W), boxH: Math.ceil(3 * R + H), hw: (W - G).toFixed(1), hh: (H - G).toFixed(1),
+      hexes, items,
+      cats: cats.map((c) => ({ ...c, on: s.cat === c.id, border: s.cat === c.id ? '#E8A33D' : '#2C3642', bg: s.cat === c.id ? '#2A2418' : 'transparent', fg: s.cat === c.id ? '#ECE9E2' : '#9AA4B1', pick: () => this.setState({ cat: c.id }) })),
+      totals: ['def', 'sup', 'inc', 'mor'].map((k) => ({ k: label[k], v: fmt(sum[k]) })),
+      treasury: (1240 - spent).toLocaleString('en-US'),
+      queued: s.added.length ? s.added.length + ' new ' + (s.added.length === 1 ? 'build' : 'builds') + ' · ' + spent + ' treasury' : 'No new builds this turn',
+      clear: () => this.setState({ added: [] }),
+      hint: sel ? (okCount ? 'Choose a highlighted lot to place the ' + sel.name.toLowerCase() + '.' : 'No free lot can take the ' + sel.name.toLowerCase() + (sel.needs ? ': it needs ' + sel.needs + ' land.' : '.')) : 'Choose a building, then a lot on the map.'
+    };
+  }
+}
+</script>
+</body>
+</html>
