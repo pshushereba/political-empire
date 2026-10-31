@@ -47,7 +47,16 @@ button:focus-visible,a:focus-visible{outline:2px solid #E8A33D;outline-offset:2p
         <div style="display: flex; flex-direction: column; gap: 6px">
           <a href="Main.dc.html" style="font-size: 13px; font-weight: 600; text-decoration: none">← World map</a>
           <h1 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 30px">Saline District</h1>
-          <span style="font-size: 14px; color: #9AA4B1">7 hexes · 2 building lots per hex</span>
+          <span style="font-size: 14px; color: #9AA4B1">One district · 7 hexes · 14 building lots</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 24px">
+        <div style="display: flex; align-items: center; gap: 14px">
+          <div role="img" aria-label="Saline District is 7 of the 37 hexes in the Republic of Veyra" style="position: relative; width: {{mini.w}}px; height: {{mini.h}}px">
+            <sc-for list="{{mini.hexes}}" as="m" hint-placeholder-count="37">
+              <span style="position: absolute; left: {{m.x}}px; top: {{m.y}}px; width: {{mini.hw}}px; height: {{mini.hh}}px; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); background: {{m.bg}}"></span>
+            </sc-for>
+          </div>
+          <span style="display: flex; flex-direction: column; gap: 2px; font-size: 13px"><span style="font-weight: 600">7 of 37 hexes</span><span style="color: #9AA4B1">in the Republic of Veyra</span></span>
         </div>
         <div role="group" aria-label="View" style="display: flex; padding: 4px; gap: 4px; border-radius: 10px; background: #161C24; border: 1px solid #2C3642">
           <sc-for list="{{viewOpts}}" as="v" hint-placeholder-count="2">
@@ -57,15 +66,19 @@ button:focus-visible,a:focus-visible{outline:2px solid #E8A33D;outline-offset:2p
             </button>
           </sc-for>
         </div>
+        </div>
       </div>
 
       <div style="flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center">
         <div style="position: relative; width: {{boxW}}px; height: {{boxH}}px; transform-style: preserve-3d; transform: {{view.transform}}; transition: transform 0.5s ease">
+          <sc-for list="{{hexes}}" as="u" hint-placeholder-count="7">
+            <span aria-hidden="true" style="position: absolute; left: {{u.ux}}px; top: {{u.uy}}px; width: {{uw}}px; height: {{uh}}px; transform: translateZ(-1px); clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); background: rgba(232,163,61,0.55)"></span>
+          </sc-for>
           <sc-for list="{{hexes}}" as="h" hint-placeholder-count="7">
             <div style="position: absolute; left: {{h.x}}px; top: {{h.y}}px; width: {{hw}}px; height: {{hh}}px; transform-style: preserve-3d">
               <button class="tile" type="button" aria-label="{{h.aria}}" onClick="{{h.place}}" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%; padding: 0; border: 0; cursor: {{h.cursor}}; opacity: {{h.opacity}}; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); background: {{h.bg}}; color: #ECE9E2; font-family: inherit; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px">
                 <sc-if value="{{view.flat}}" hint-placeholder-val="{{false}}">
-                  <span style="font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: {{h.subtle}}">{{h.terrain}}</span>
+                  <span style="font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: {{h.subtle}}">{{h.used}}</span>
                   <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 15px">{{h.name}}</span>
                   <sc-for list="{{h.slots}}" as="s" hint-placeholder-count="2">
                     <span style="width: 136px; height: 34px; box-sizing: border-box; padding: 0 10px; border-radius: 6px; border: 1px {{s.borderStyle}} {{s.border}}; background: {{s.bg}}; display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: {{s.fg}}">
@@ -180,14 +193,14 @@ class Component extends DCLogic {
       { id: 'wall', cat: 'def', name: 'Fortified wall', icon: I.wall, cost: 200, turns: 3, fx: { def: 6, mor: -1 }, desc: 'Reinforced concrete. Safe, but it makes neighbours nervous.' },
       { id: 'garrison', cat: 'def', name: 'Garrison', icon: I.garrison, cost: 260, turns: 3, fx: { def: 7 }, desc: 'A standing force that answers to the capital.' },
       { id: 'water', cat: 'sup', name: 'Water works', icon: I.water, cost: 120, turns: 2, fx: { sup: 4, mor: 1 }, desc: 'Clean water lets the city grow.', needs: 'River' },
-      { id: 'power', cat: 'sup', name: 'Power station', icon: I.power, cost: 220, turns: 3, fx: { sup: 5, mor: -1 }, desc: 'Powers every business in the province.' },
+      { id: 'power', cat: 'sup', name: 'Power station', icon: I.power, cost: 220, turns: 3, fx: { sup: 5, mor: -1 }, desc: 'Powers every business in the district.' },
       { id: 'factory', cat: 'sup', name: 'Factory', icon: I.factory, cost: 180, turns: 3, fx: { sup: 3, inc: 3, mor: -1 }, desc: 'Jobs and goods. The Dockworkers want a say in it.' },
       { id: 'shop', cat: 'inc', name: 'Market street', icon: I.shop, cost: 90, turns: 1, fx: { inc: 3, mor: 1 }, desc: 'Small businesses for the local population.' },
       { id: 'bank', cat: 'inc', name: 'Bank', icon: I.bank, cost: 300, turns: 3, fx: { inc: 6 }, desc: 'Loans for merchants. The Merchant Houses approve.', needs: 'Capital' },
       { id: 'port', cat: 'inc', name: 'Port terminal', icon: I.port, cost: 260, turns: 4, fx: { inc: 5, sup: 2 }, desc: 'Ships from Ostmark and Lune dock here.', needs: 'Coast' },
       { id: 'school', cat: 'mor', name: 'School', icon: I.school, cost: 140, turns: 2, fx: { mor: 3, inc: 1 }, desc: 'A literate people grows faster.' },
       { id: 'clinic', cat: 'mor', name: 'Clinic', icon: I.clinic, cost: 120, turns: 2, fx: { mor: 4 }, desc: 'Fewer sick days, less unrest.' },
-      { id: 'transit', cat: 'mor', name: 'Transit station', icon: I.transit, cost: 160, turns: 2, fx: { mor: 2, inc: 2 }, desc: 'Links this hex to the rest of the province.' }
+      { id: 'transit', cat: 'mor', name: 'Transit station', icon: I.transit, cost: 160, turns: 2, fx: { mor: 2, inc: 2 }, desc: 'Links this hex to the rest of the district.' }
     ];
     const P = (d, f) => ({ d, f });
     const rect = (x, y, w, h, f) => P('M' + x + ' ' + y + 'h' + w + 'v' + h + 'h' + (-w) + 'z', f);
@@ -214,13 +227,13 @@ class Component extends DCLogic {
     const byId = {}; B.forEach((b) => { byId[b.id] = b; });
     const R = 110, W = Math.sqrt(3) * R, H = 2 * R, G = 6;
     const tiles = [
-      { name: 'Saline', terrain: 'Capital', x: W, y: 1.5 * R, bg: '#333A44', base: ['bank', 'shop'] },
-      { name: 'Gull Point', terrain: 'Coast', x: 2 * W, y: 1.5 * R, bg: '#1F3340', base: ['checkpoint'] },
-      { name: 'Ashwood', terrain: 'Forest', x: 1.5 * W, y: 0, bg: '#22332A', base: [] },
-      { name: 'Brenfield', terrain: 'Farmland', x: 0.5 * W, y: 0, bg: '#30352A', base: ['factory'] },
-      { name: 'Millrace', terrain: 'River', x: 0, y: 1.5 * R, bg: '#1D3039', base: ['water'] },
-      { name: 'Corrie Tor', terrain: 'Hills', x: 0.5 * W, y: 3 * R, bg: '#2F3238', base: [] },
-      { name: 'Westmoor', terrain: 'Plains', x: 1.5 * W, y: 3 * R, bg: '#2A3138', base: [] }
+      { name: 'Saline city', terrain: 'Capital', x: W, y: 1.5 * R, bg: '#333A44', base: ['bank', 'shop'] },
+      { name: 'Coast', terrain: 'Coast', x: 2 * W, y: 1.5 * R, bg: '#1F3340', base: ['checkpoint'] },
+      { name: 'Forest', terrain: 'Forest', x: 1.5 * W, y: 0, bg: '#22332A', base: [] },
+      { name: 'Farmland', terrain: 'Farmland', x: 0.5 * W, y: 0, bg: '#30352A', base: ['factory'] },
+      { name: 'River', terrain: 'River', x: 0, y: 1.5 * R, bg: '#1D3039', base: ['water'] },
+      { name: 'Hills', terrain: 'Hills', x: 0.5 * W, y: 3 * R, bg: '#2F3238', base: [] },
+      { name: 'Plains', terrain: 'Plains', x: 1.5 * W, y: 3 * R, bg: '#2A3138', base: [] }
     ];
     const s = this.state;
     const sel = s.pick ? byId[s.pick] : null;
@@ -234,12 +247,12 @@ class Component extends DCLogic {
         return { label: ok ? 'Place ' + sel.name : 'Empty lot', icon: 'M12 6v12M6 12h12', border: ok ? '#E8A33D' : 'rgba(236,233,226,0.3)', borderStyle: 'dashed', bg: ok ? 'rgba(232,163,61,0.16)' : 'transparent', fg: ok ? '#F4C374' : '#B3BAC4' };
       });
       return {
-        x: (t.x + G / 2).toFixed(1), y: (t.y + G / 2).toFixed(1), name: t.name, terrain: t.terrain, slots,
+        x: (t.x + G / 2).toFixed(1), y: (t.y + G / 2).toFixed(1), ux: (t.x - 1).toFixed(1), uy: (t.y - 1).toFixed(1), used: contents[i].length + ' of 2 lots used', name: t.name, terrain: t.terrain, slots,
         art: contents[i].map((c) => ({ ...pad(ART[c.id]), fresh: c.fresh, turns: byId[c.id].turns + (byId[c.id].turns === 1 ? ' turn' : ' turns') })).concat(t.terrain === 'Forest' && contents[i].length === 0 ? [{ ...pad(ART.trees), fresh: false, turns: '' }] : []),
         lot: ok ? 'rgba(232,163,61,0.35)' : 'rgba(255,255,255,0.05)',
         bg: ok ? '#4A3B22' : t.bg, subtle: '#C9CDD3',
         opacity: sel && !ok ? 0.5 : 1, cursor: ok ? 'pointer' : 'default',
-        aria: t.terrain + ' hex ' + t.name + ', ' + contents[i].length + ' of 2 lots used' + (ok ? ', place ' + sel.name + ' here' : ''),
+        aria: t.name + ' hex in Saline District, ' + contents[i].length + ' of 2 lots used' + (ok ? ', place ' + sel.name + ' here' : ''),
         place: () => { if (canPlace(i)) this.setState({ added: s.added.concat([{ tile: i, id: sel.id }]) }); }
       };
     });
@@ -256,6 +269,15 @@ class Component extends DCLogic {
     }));
     const okCount = tiles.filter((t, i) => canPlace(i)).length;
     return {
+      uw: (W + 2).toFixed(1), uh: (H + 2).toFixed(1), mini: (() => {
+        const r = 7, w = Math.sqrt(3) * r, out = [];
+        for (let q = -3; q <= 3; q++) for (let rr = -3; rr <= 3; rr++) {
+          const d = (Math.abs(q) + Math.abs(rr) + Math.abs(q + rr)) / 2;
+          if (d > 3) continue;
+          out.push({ x: (w * (q + rr / 2) + 3.5 * w - w / 2 + 0.5).toFixed(1), y: (1.5 * r * rr + 4.5 * r + 0.5).toFixed(1), bg: d <= 1 ? '#E8A33D' : 'rgba(232,163,61,0.32)' });
+        }
+        return { hexes: out, w: Math.ceil(7 * w), h: Math.ceil(11 * r + 1), hw: (w - 1).toFixed(1), hh: (2 * r - 1).toFixed(1) };
+      })(),
       boxW: Math.ceil(3 * W), boxH: Math.ceil(3 * R + H), hw: (W - G).toFixed(1), hh: (H - G).toFixed(1),
       hexes, items,
       view: { tilted: s.tilted, flat: !s.tilted, transform: s.tilted ? 'perspective(1800px) rotateX(56deg)' : 'none' },
