@@ -65,6 +65,21 @@ export function landCount(state: GameState): number {
   return state.hexes.filter((h) => h.terrain !== 'sea').length;
 }
 
+/** The share of the world's land that wins the game. Smaller in larger worlds, where 60% would mean beating everyone. */
+export function hegemonyShare(state: GameState): number {
+  return Math.max(BALANCE.hegemonyFloor, Math.min(BALANCE.hegemonyShare, BALANCE.hegemonyFairShares / state.order.length));
+}
+
+/** Hexes needed for a hegemony victory. */
+export function hegemonyHexes(state: GameState): number {
+  return Math.ceil(landCount(state) * hegemonyShare(state));
+}
+
+/** A nation holding more than this many hexes frightens the rest. */
+export function threatHexes(state: GameState): number {
+  return landCount(state) * Math.min(BALANCE.threatShare, BALANCE.threatFairShares / state.order.length);
+}
+
 export function unitCount(state: GameState, id: NationId): number {
   let n = 0;
   for (const a of state.armies) if (a.owner === id) for (const u of UNIT_IDS) n += a.units[u];

@@ -16,3 +16,4 @@ export * from './content/governments';
 export * from './content/objectives';
 export { allReady } from './turn';
 export * from './log';
+export * from './worldgen';

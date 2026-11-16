@@ -1,5 +1,5 @@
 import { AXIS_IDS, BALANCE } from './content/world';
-import { clamp, governmentOf, landCount, militaryStrength, ownedHexes } from './economy';
+import { clamp, governmentOf, militaryStrength, ownedHexes, threatHexes } from './economy';
 import { hexAt } from './hex';
 import { sharesBorder } from './military';
 import { pairKey, relation } from './relations';
@@ -36,7 +36,7 @@ export function baseline(state: GameState, a: NationId, b: NationId): number {
   const calm = rel.tradePact || rel.napUntil >= state.turn;
   const friction = !calm && sharesBorder(state, a, b) ? BALANCE.borderFriction : 0;
   // Everyone fears a nation that is swallowing the map.
-  const land = landCount(state) * BALANCE.threatShare;
+  const land = threatHexes(state);
   const fear = ownedHexes(state, a).length > land || ownedHexes(state, b).length > land ? 15 : 0;
   return Math.round(30 - diff * 1.4 + (rel.tradePact ? 15 : 0) + (rel.embassy.length ? 10 : 0) - friction - fear);
 }

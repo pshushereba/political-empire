@@ -10,18 +10,18 @@ One turn is one day in the life of the nation.
 2. **Run the nation**: build on your hexes, raise troops, move armies, claim land, send your envoy, conduct diplomacy.
 3. **End the turn.** Rivals act, every nation's books are settled, a turn report shows what happened, and a new question arrives.
 
-**You win** by conquest (no rival capital still stands) or hegemony (you hold 60% of the land). **You lose** if your capital is taken, or a rival reaches hegemony first.
+**You win** by conquest (no rival capital still stands) or hegemony (you hold a set share of the land: 60% in a world of four, less in larger worlds). **You lose** if your capital is taken, or a rival reaches hegemony first.
 
 ### Players
 
-A world has four nations. One to four are run by people (`state.humans`); the computer runs the rest. Everything that belongs to a person rather than a nation (their daily question, envoy, objectives, daily run, and whether they have ended the turn) lives in that nation's `seat`.
+A world has 4 to 12 nations. Any number of them, from one to all, are run by people (`state.humans`); the computer runs the rest. Everything that belongs to a person rather than a nation (their daily question, envoy, objectives, daily run, and whether they have ended the turn) lives in that nation's `seat`.
 
 - Every action names the nation taking it: `applyAction(state, action, nationId)`. Nothing in the rules assumes which nation "you" are.
 - Players act in any order during a turn. A player who has ended their turn can do nothing more until the world moves on, which happens when every player still in the game has ended theirs.
 - A player whose capital falls is out. The game goes on for the others, and ends when one nation wins or no player is left.
 - **Deals between players need agreement.** A trade pact, non-aggression pact or peace offered to another player becomes a proposal they accept or decline; it lapses after 2 turns. Gifts between players move real treasury. Computer-run nations still answer at once.
 - The log is per-player: private notes (`to`) are only shown to that nation, and events are marked important only for the nations they concern (`about`).
-- Players join in this order of starting position: the centre, then Kesh's, Lune's and Ostmark's. The map is not symmetrical, so the positions are not equally good.
+- Starting positions are drawn by lot on a generated map. Every nation gets the same amount of starting land, though the land around it differs.
 
 ## 2. Hex maths
 
@@ -32,19 +32,34 @@ A world has four nations. One to four are run by people (`state.humans`); the co
 
 Code: `hex.ts`.
 
-## 3. The world (14 × 10)
+## 3. The world
 
-Four nations start with every land hex within 2 of their capital (ties go to the nearer capital): 19 hexes each, or fewer on the coast. The rest of the land is unclaimed.
+A world holds **4 to 12 nations** and is generated fresh for each game from a seed (`worldgen.ts`). The same seed always gives the same world.
 
-| Nation | id | Capital | Colour | Temperament | Starting stance |
-| --- | --- | --- | --- | --- | --- |
-| The player (default "Republic of Veyra") | `veyra` | 5, 5 | `#E8A33D` | — | — |
-| Ostmark Union | `ostmark` | 10, 2 | `#3FA7A0` | Cautious, expansionist | Cordial (+30) |
-| Kesh Directorate | `kesh` | 11, 7 | `#C4607A` | Aggressive | Hostile (−45) |
-| Free Cities of Lune | `lune` | 2, 1 | `#8DB8E8` | Peaceful, land-hungry | Wary (−5) |
+- **Size** grows with the number of nations, at about 35 hexes of map each: 14 × 10 for 4 nations, 20 × 14 for 8, 25 × 17 for 12. Roughly four-fifths is land, so each nation has about 29 land hexes to its name.
+- **Land comes from the seed and the coordinates** of each hex, through layered noise for height, wetness and rivers. Nothing depends on the order hexes are made in, so a world could later be extended region by region.
+- **Capitals** are spread as far apart as the land allows and are never closer than 5 hexes, so starting territories do not touch. Which nation gets which capital is drawn by lot.
+- **Fair starts**: every hex within 2 of a capital is land, so every nation begins with exactly 19 hexes.
+- **No islands**: any capital cut off by sea is joined to the rest by a land bridge, so every nation can reach, and be reached by, every other.
+- Land beside the sea is Coast.
 
-- Sea: `(c ≤ 1 and r ≥ 6)`, `(r = 9 and c ≤ 6)`, `(c = 13 and r ≤ 3)`, `(c = 0 and r ≥ 3)`, plus an inlet at `(4, 8)` and `(5, 8)`.
-- Terrain is generated from a fixed hash, so the map is the same every game. Land beside the sea is Coast.
+**Nations.** Players are seated first (`p1`, `p2`, …); the computer fills the remaining seats from a pool of eleven rivals, taken in order, so Ostmark, Kesh and Lune appear in every solo game. Each rival has its own ideology (and so its own form of government), temperament, and opening opinion of players. Colours are assigned by seat from a palette of twelve; the first player is always amber.
+
+| Rival | Character | Opening stance |
+| --- | --- | --- |
+| Ostmark Union | Aristocracy. Cautious, expansionist | Cordial (+30) |
+| Kesh Directorate | Dictatorship. Aggressive | Hostile (−45) |
+| Free Cities of Lune | Merchant republic. Peaceful, land-hungry | Wary (−5) |
+| Varn Compact | Commune. Generous, stubborn | +10 |
+| Crown of Thessaly | Aristocracy. Patient, traditional | 0 |
+| Dominion of Azhar | Dictatorship. The most aggressive | −35 |
+| Halden Confederacy | Democracy. Very hard to provoke | +20 |
+| Order of Saint Orrin | Aristocracy. Isolationist | −15 |
+| Meridian Syndicate | Merchant republic. Opportunistic | +15 |
+| People's State of Brakka | One-party state. Suspicious | −20 |
+| Marches of Tov | Council republic. Defensive | −5 |
+
+**Winning in a larger world.** Hegemony needs 60% of the land in a world of four, falling with size to 30% in worlds of eight or more (2.4 times a fair share, never less than 30%). The share at which a nation frightens the others scales the same way.
 
 | Terrain | Income | Supply | Defender bonus | Armour attacking in |
 | --- | --- | --- | --- | --- |

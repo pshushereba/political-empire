@@ -33,9 +33,9 @@ export function DiplomacyScreen({ nationId }: { nationId?: string }) {
   return (
     <div className="page">
       <div className="wrap">
-        <div className="tabs" role="group" aria-label="Nation" style={{ alignSelf: 'flex-start', minWidth: 520 }}>
+        <div className="tabs" role="group" aria-label="Nation" style={{ alignSelf: 'flex-start', flexWrap: 'wrap', maxWidth: '100%' }}>
           {rivals.map((r) => (
-            <button key={r} type="button" aria-pressed={r === id} onClick={() => go(`/diplomacy/${r}`)}>
+            <button key={r} type="button" aria-pressed={r === id} onClick={() => go(`/diplomacy/${r}`)} style={{ flex: '0 0 auto', padding: '0 14px' }}>
               {state.nations[r].short}{state.nations[r].seat ? ' (player)' : ''}{state.nations[r].alive ? ` · ${stance(relation(state, player.id, r))}` : ' · Fallen'}
             </button>
           ))}

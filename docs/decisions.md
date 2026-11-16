@@ -36,6 +36,10 @@
 26. **Build for worlds of 8 to 12 nations for now.** Friends games and matched public games share this shape. It needs a map generator, more nation colours and a pool of computer nations.
 27. **Long term: one open world.** An endless, scrollable hex map where players find, inspect, trade with and attack other nations. It is a separate mode with a different structure, described in `ROADMAP.md`. Nearer work should not close it off: generate land from a seed and coordinates, and build the map view to pan and zoom.
 
+28. **Every world is generated.** The hand-made four-nation map is gone; a world of four is generated like any other. Players are `p1`, `p2`, … and computer nations come from a pool.
+29. **Twelve nation colours**, assigned by seat, first player amber: amber, teal, rose, sky, violet, lime, coral, sand, orchid, cobalt, fern, copper. A first pass, in `design-tokens.json` and `NATION_COLORS`. Every nation is also labelled by name, so colour is never the only signal.
+30. **Larger worlds are won with a smaller share of the land** (30% from eight nations up), since 60% of a twelve-nation world would mean defeating nearly everyone.
+
 ## Open questions
 
 - **Should ranked scores be validated on the server?** Today the client reports its own score. An Edge Function could replay the game and compute it. Worth doing before the ranking matters to anyone.

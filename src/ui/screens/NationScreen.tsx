@@ -1,5 +1,5 @@
 import {
-  AXES, BALANCE, coord, economy, ERAS, eraProgress, FACTIONS, formatPopulation, GOVERNMENTS, governmentOf, landCount, lean, modifiers, scaledEffects, unitCount,
+  AXES, BALANCE, coord, economy, ERAS, eraProgress, FACTIONS, formatPopulation, GOVERNMENTS, governmentOf, hegemonyHexes, landCount, lean, modifiers, scaledEffects, unitCount,
   type AxisDef, type Nation,
 } from '../../game';
 import { EffectChips, Flag, signed } from '../components/common';
@@ -39,7 +39,7 @@ export function NationScreen() {
   const n = state.nations[me];
   const eco = economy(state, n.id);
   const land = landCount(state);
-  const goal = Math.ceil(land * BALANCE.hegemonyShare);
+  const goal = hegemonyHexes(state);
   const progress = eraProgress(n, eco.hexes);
   const next = ERAS[n.era + 1];
   const effects = doctrine(n);

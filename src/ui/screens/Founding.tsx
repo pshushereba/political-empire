@@ -10,6 +10,7 @@ import { go, useStore } from '../store';
 
 const QUESTION_TIMES = [{ s: 0, name: 'No limit' }, { s: 30, name: '30 seconds' }, { s: 60, name: '1 minute' }, { s: 120, name: '2 minutes' }];
 const TURN_TIMES = [{ s: 0, name: 'No limit' }, { s: 180, name: '3 minutes' }, { s: 300, name: '5 minutes' }, { s: 600, name: '10 minutes' }];
+const WORLD_SIZES = [4, 6, 8, 10, 12];
 const PICKED = { borderColor: 'var(--accent)', background: 'var(--surface-amber)' };
 
 const PATTERNS = [
@@ -24,12 +25,14 @@ export function Founding() {
   /** How many people are playing on this device, and the nations already founded. */
   const [count, setCount] = useState(1);
   const [done, setDone] = useState<FoundingChoices[]>([]);
+  /** How many nations share the world, players and computer-run together. */
+  const [nations, setNations] = useState(4);
   const [questionSeconds, setQuestionSeconds] = useState(0);
   const [turnSeconds, setTurnSeconds] = useState(0);
   const seatNo = done.length + 1;
   const last = seatNo >= count;
   const submit = () => {
-    if (last) { newGame([...done, c], { questionSeconds, turnSeconds: count > 1 ? turnSeconds : 0 }); go('/'); return; }
+    if (last) { newGame([...done, c], { questionSeconds, turnSeconds: count > 1 ? turnSeconds : 0 }, Math.max(nations, count)); go('/'); return; }
     setDone([...done, c]);
     const pair = FLAG_PAIRS[seatNo % FLAG_PAIRS.length];
     setC({ ...DEFAULT_FOUNDING, flag: { pattern: 'tricolour', a: pair.a, b: pair.b } });
@@ -51,7 +54,7 @@ export function Founding() {
         <div className="row"><Logo /><span className="wordmark">POLITICAL EMPIRE</span></div>
         <div className="col gap-8">
           <h1 className="h-page">{count > 1 ? `Player ${seatNo} of ${count}: found your nation` : 'Found a nation'}</h1>
-          <p className="body-large">Four questions set where your nation starts. A new question every turn decides where it ends up, and three rivals share the map.</p>
+          <p className="body-large">Four questions set where your nation starts. A new question every turn decides where it ends up, and {Math.max(nations, count) - 1} other nations share the map.</p>
         </div>
 
         {done.length === 0 && (
@@ -59,10 +62,10 @@ export function Founding() {
             <h2 className="h-section">How will you play?</h2>
             <div className="toggle-group">
               <button type="button" className="toggle" aria-pressed={count === 1} onClick={() => setCount(1)}>
-                <strong>Alone</strong><span className="small muted">Build your nation and take on three computer-run rivals.</span>
+                <strong>Alone</strong><span className="small muted">Build your nation and take on computer-run rivals.</span>
               </button>
               <button type="button" className="toggle" aria-pressed={count > 1} onClick={() => setCount(Math.max(2, count))}>
-                <strong>Pass and play</strong><span className="small muted">Two to four people share this device. The computer runs the rest.</span>
+                <strong>Pass and play</strong><span className="small muted">Two to eight people share this device. The computer runs the rest.</span>
               </button>
               <button type="button" className="toggle" disabled style={{ opacity: 0.6 }}>
                 <strong>Online</strong><span className="small muted">Against other players, each on their own device. Not open yet.</span>
@@ -71,9 +74,17 @@ export function Founding() {
             {count > 1 && (
               <div className="row gap-8" role="group" aria-label="Number of players">
                 <span className="small muted">Players</span>
-                {[2, 3, 4].map((n) => <button key={n} type="button" className="btn small" aria-pressed={count === n} style={count === n ? { borderColor: 'var(--accent)', background: 'var(--surface-amber)' } : undefined} onClick={() => setCount(n)}>{n}</button>)}
+                {[2, 3, 4, 5, 6, 7, 8].map((n) => <button key={n} type="button" className="btn small" aria-pressed={count === n} style={count === n ? PICKED : undefined} onClick={() => { setCount(n); setNations(Math.max(nations, n)); }}>{n}</button>)}
               </div>
             )}
+            <div className="row gap-8 wrap-row" role="group" aria-label="Size of the world">
+              <span className="small muted">Nations in the world</span>
+              {WORLD_SIZES.map((n) => <button key={n} type="button" className="btn small" aria-pressed={nations === n} disabled={n < count} style={nations === n ? PICKED : undefined} onClick={() => setNations(n)}>{n}</button>)}
+            </div>
+            <p className="small muted">
+              {Math.max(nations, count) - count} run by the computer. The map is drawn fresh for every game and grows with the number of nations
+              {nations >= 8 ? '; a world this size is won by holding 30% of the land, or by conquest.' : '.'}
+            </p>
           </div>
         )}
         {done.length === 0 && (

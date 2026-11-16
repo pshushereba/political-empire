@@ -132,11 +132,34 @@ export const FACTION_IDS: FactionId[] = ['merchants', 'settlers', 'clergy', 'doc
 
 // ---- The starting world --------------------------------------------------
 
-export const COLS = 14;
-export const ROWS = 10;
+/** Every nation starts with the land hexes within this distance of its capital. */
 export const START_RADIUS = 2;
 
-export const PLAYER_START = { id: 'veyra', capital: { c: 5, r: 5 }, color: '#E8A33D' };
+/**
+ * Nation colours, in the order nations are seated. The first player is always
+ * amber. Chosen to stay apart in both hue and lightness on the dark map, where
+ * rivals are drawn at reduced opacity. Mirrors `color.nation` in docs/design-tokens.json.
+ */
+export const NATION_COLORS: { name: string; hex: string }[] = [
+  { name: 'Amber', hex: '#E8A33D' },
+  { name: 'Teal', hex: '#3FA7A0' },
+  { name: 'Rose', hex: '#C4607A' },
+  { name: 'Sky', hex: '#8DB8E8' },
+  { name: 'Violet', hex: '#9B8AE0' },
+  { name: 'Lime', hex: '#A7C957' },
+  { name: 'Coral', hex: '#E36F4C' },
+  { name: 'Sand', hex: '#D9C9A3' },
+  { name: 'Orchid', hex: '#C567C9' },
+  { name: 'Cobalt', hex: '#5878D8' },
+  { name: 'Fern', hex: '#4E9B63' },
+  { name: 'Copper', hex: '#B5784A' },
+];
+
+/** Names for nations whose player leaves the name blank, by seat. */
+export const DEFAULT_NAMES = [
+  'Republic of Veyra', 'Commonwealth of Arden', 'Union of Sorrel', 'League of Thane', 'Realm of Calder', 'Free State of Wren',
+  'Dominion of Isk', 'Federation of Marrow', 'Principality of Oriel', 'Assembly of Pell', 'Kingdom of Rook', 'Provinces of Senn',
+];
 
 export interface RivalDef {
   id: string;
@@ -144,33 +167,52 @@ export interface RivalDef {
   short: string;
   motto: string;
   description: string;
-  capital: { c: number; r: number };
-  color: string;
-  flag: Flag;
+  flag: Flag['pattern'];
   axes: Record<AxisId, number>;
   personality: Personality;
-  /** Starting relations with the player. */
+  /** How it regards players when the game begins. */
   stance: number;
 }
 
-export const RIVALS: RivalDef[] = [
-  { id: 'ostmark', name: 'Ostmark Union', short: 'Ostmark', motto: 'Many hands, one hammer',
+/**
+ * Computer-run nations. A world takes as many as it has empty seats, from the
+ * top of this list, so the first three appear in every solo game.
+ */
+export const RIVAL_POOL: RivalDef[] = [
+  { id: 'ostmark', name: 'Ostmark Union', short: 'Ostmark', motto: 'Many hands, one hammer', flag: 'bands',
     description: 'A federation of mining towns ruled by a federal council. Exports iron and timber.',
-    capital: { c: 10, r: 2 }, color: '#3FA7A0', flag: { pattern: 'bands', a: '#3FA7A0', b: '#0E1217' },
     axes: { liberty: 34, market: 40, reform: 30, openness: 58 }, personality: { aggression: 0.35, expansion: 0.6 }, stance: 30 },
-  { id: 'kesh', name: 'Kesh Directorate', short: 'Kesh', motto: 'Order is mercy',
+  { id: 'kesh', name: 'Kesh Directorate', short: 'Kesh', motto: 'Order is mercy', flag: 'canton',
     description: 'A disciplined state run by five Directors. It keeps a large army and few friends.',
-    capital: { c: 11, r: 7 }, color: '#C4607A', flag: { pattern: 'canton', a: '#C4607A', b: '#ECE9E2' },
     axes: { liberty: 16, market: 30, reform: 55, openness: 20 }, personality: { aggression: 0.7, expansion: 0.5 }, stance: -45 },
-  { id: 'lune', name: 'Free Cities of Lune', short: 'Lune', motto: 'Every harbour its own master',
+  { id: 'lune', name: 'Free Cities of Lune', short: 'Lune', motto: 'Every harbour its own master', flag: 'tricolour',
     description: 'A league of merchant cities. Rich, proud, and slow to trust anyone.',
-    capital: { c: 2, r: 1 }, color: '#8DB8E8', flag: { pattern: 'tricolour', a: '#8DB8E8', b: '#5B3A1E' },
     axes: { liberty: 72, market: 80, reform: 62, openness: 66 }, personality: { aggression: 0.2, expansion: 0.8 }, stance: -5 },
+  { id: 'varn', name: 'Varn Compact', short: 'Varn', motto: 'What is grown is shared', flag: 'bands',
+    description: 'Farming communes bound by a single charter. Generous to friends, stubborn with everyone.',
+    axes: { liberty: 70, market: 20, reform: 58, openness: 44 }, personality: { aggression: 0.25, expansion: 0.45 }, stance: 10 },
+  { id: 'thessaly', name: 'Crown of Thessaly', short: 'Thessaly', motto: 'As it was, so it shall be', flag: 'canton',
+    description: 'Seven old families and a crown that passes between them. Patient, proud, and long in memory.',
+    axes: { liberty: 30, market: 55, reform: 18, openness: 40 }, personality: { aggression: 0.4, expansion: 0.4 }, stance: 0 },
+  { id: 'azhar', name: 'Dominion of Azhar', short: 'Azhar', motto: 'The strong hand feeds', flag: 'tricolour',
+    description: 'One marshal, one army, one answer to every question. It respects only what it cannot take.',
+    axes: { liberty: 10, market: 45, reform: 35, openness: 28 }, personality: { aggression: 0.85, expansion: 0.7 }, stance: -35 },
+  { id: 'halden', name: 'Halden Confederacy', short: 'Halden', motto: 'Slowly, and together', flag: 'bands',
+    description: 'A dozen cantons that vote on everything, twice. Hard to provoke and harder to rush.',
+    axes: { liberty: 76, market: 52, reform: 48, openness: 60 }, personality: { aggression: 0.15, expansion: 0.5 }, stance: 20 },
+  { id: 'orrin', name: 'Order of Saint Orrin', short: 'Orrin', motto: 'Keep the lamp', flag: 'canton',
+    description: 'A monastic state behind high walls. It wants nothing from the world except to be left out of it.',
+    axes: { liberty: 26, market: 35, reform: 10, openness: 12 }, personality: { aggression: 0.3, expansion: 0.25 }, stance: -15 },
+  { id: 'meridian', name: 'Meridian Syndicate', short: 'Meridian', motto: 'Everything has a price', flag: 'tricolour',
+    description: 'A trading company that outgrew its charter and bought a country. Friendly while the ledgers agree.',
+    axes: { liberty: 64, market: 90, reform: 70, openness: 82 }, personality: { aggression: 0.45, expansion: 0.75 }, stance: 15 },
+  { id: 'brakka', name: 'People’s State of Brakka', short: 'Brakka', motto: 'The plan provides', flag: 'bands',
+    description: 'One party, one plan, and a great many chimneys. Suspicious of anyone it cannot count.',
+    axes: { liberty: 30, market: 18, reform: 76, openness: 30 }, personality: { aggression: 0.55, expansion: 0.6 }, stance: -20 },
+  { id: 'tov', name: 'Marches of Tov', short: 'Tov', motto: 'Hold the line', flag: 'canton',
+    description: 'Border lords who have been invaded from every direction and intend never to be again.',
+    axes: { liberty: 48, market: 46, reform: 32, openness: 22 }, personality: { aggression: 0.3, expansion: 0.3 }, stance: -5 },
 ];
-
-export function isSea(c: number, r: number): boolean {
-  return (c <= 1 && r >= 6) || (r === 9 && c <= 6) || (c === 13 && r <= 3) || (c === 0 && r >= 3);
-}
 
 // ---- Balance numbers -----------------------------------------------------
 
@@ -194,8 +236,13 @@ export const BALANCE = {
   cutOffDefence: 0.6,
   /** A nation holding this share of the land frightens everyone else. */
   threatShare: 0.35,
+  /** …or, in a larger world, this many times its fair share. The smaller of the two applies. */
+  threatFairShares: 1.4,
   /** Share of land hexes needed for a hegemony victory. */
   hegemonyShare: 0.6,
+  /** In a larger world: this many times a fair share of the land, but never less than `hegemonyFloor`. */
+  hegemonyFairShares: 2.4,
+  hegemonyFloor: 0.3,
   unrestBelow: 25,
   claimBase: 8,
   /** Stability lost when a timed question runs out and the council answers for you. */

@@ -6,8 +6,9 @@ Where the game is, what comes next, and where it is heading. Phases are in order
 
 Playable today, in the browser:
 
-- **Solo**: found a nation and play against three computer-run rivals to conquest or hegemony.
-- **Pass and play**: two to four people on one device, computer nations in the empty seats.
+- **Solo**: found a nation and play against 3 to 11 computer-run rivals to conquest or hegemony.
+- **Pass and play**: two to eight people on one device, computer nations in the empty seats.
+- **Generated worlds** of 4 to 12 nations, on a map you can pan and zoom.
 - **The core loop**: one political question a turn; ideology decides the form of government, and government decides powers, limits and buildings; an economy of businesses, supply and stability; armies, battles and capture; diplomacy by envoy; a tilted district close-up with placement bonuses.
 - **Pace settings**: a time limit on answering the question, and on each turn.
 - **Reasons to return**: objectives, a daily run, a hall of nations.
@@ -16,7 +17,7 @@ Written but not yet proven:
 
 - **Supabase accounts, cloud saves and world ranking.** The code and database script exist and have never run against a real project.
 
-Known limits: a fixed 14 × 10 map with four nations; balance tuned by simulation, not by people; placeholder art; needs a window at least 1100 px wide.
+Known limits: balance tuned by simulation, not by people; placeholder art; needs a window at least 1100 px wide.
 
 ## Phase 1: Connect the backend
 
@@ -25,15 +26,20 @@ Known limits: a fixed 14 × 10 map with four nations; balance tuned by simulatio
 - Run the migration; test sign-in, cloud save, save reconciliation and the ranking for real. Fix what breaks.
 - Decide sign-in methods beyond email link (Google, Apple).
 
-## Phase 2: Worlds for 8 to 12 nations
+## Phase 2: Worlds for 8 to 12 nations — done
 
-*Needs no backend. Can start now.*
+Built and playable in solo and pass-and-play:
 
-- **Map generator**: a world sized to the number of nations, with capitals spaced fairly and comparable land around each. Seeded, so a world can be rebuilt from its seed.
-- **More nations**: a palette of 12 nation colours that stay distinguishable (a design-token decision), and a pool of computer nations with their own names, ideologies and temperaments to fill empty seats.
-- **A map you can move around**: pan and zoom, a minimap, "go to my capital". Required once the world no longer fits the screen, and the first step toward the long-term vision below.
-- **Balance for larger worlds**: victory thresholds, the overextension penalty, era requirements and rival aggression all assume four nations.
-- Pass and play grows to match, so all of this is testable without a server.
+- **Map generator**: a world sized to the number of nations (4 to 12), generated from a seed and coordinates, with fairly spaced capitals, equal starting land, and no nation stranded on an island.
+- **More nations**: a palette of 12 nation colours and a pool of 11 computer nations with their own ideologies and temperaments.
+- **A map you can move around**: drag to pan, scroll or buttons to zoom, a minimap, "go to my capital", and a nation list that jumps to each capital.
+- **Balance for larger worlds**: the share of land needed to win, and the share at which a nation alarms the others, shrink as worlds grow.
+
+Left over, to pick up alongside later phases:
+
+- Balance in large worlds has only met simulated players. Aggressive rivals snowball; a passive player is overrun in 30 to 85 turns.
+- The palette is a first pass to adjust by eye.
+- Starting land is equal in amount but not in quality; some seeds favour some seats.
 
 ## Phase 3: Online games with friends
 

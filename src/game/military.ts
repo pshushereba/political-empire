@@ -1,6 +1,6 @@
 import { BUILDING_BY_ID } from './content/buildings';
 import { BALANCE, MAX_STACK, TERRAIN, UNIT_BY_ID, UNIT_IDS } from './content/world';
-import { modifiers } from './economy';
+import { hegemonyHexes, modifiers } from './economy';
 import { buildingYield } from './yields';
 import { coord, distance, hexAt, key, neighbourHexes, neighbours } from './hex';
 import { atWar, pairKey } from './relations';
@@ -183,7 +183,7 @@ export function checkOutcome(state: GameState): void {
     return;
   }
   const land = state.hexes.filter((h) => h.terrain !== 'sea').length;
-  const needed = Math.ceil(land * BALANCE.hegemonyShare);
+  const needed = hegemonyHexes(state);
   for (const id of alive) {
     const held = state.hexes.filter((h) => h.owner === id).length;
     if (held >= needed) {

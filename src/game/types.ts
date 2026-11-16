@@ -243,8 +243,10 @@ export interface GameSetup {
   settings?: Partial<GameSettings>;
   /** The time the game is created (ms), for the first turn's clock. */
   now?: number;
-  /** One entry per human-run nation, in turn order (1–4). The rest are run by the computer. */
+  /** One entry per human-run nation, in turn order. The rest are run by the computer. */
   players: FoundingChoices[];
+  /** How many nations share the world, players included (4–12). The map is sized to fit. */
+  nations?: number;
   seed?: number;
   /** A unique id for the game. The caller supplies one; the rules never invent randomness. */
   id?: string;

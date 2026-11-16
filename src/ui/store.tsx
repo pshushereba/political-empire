@@ -29,7 +29,7 @@ interface Store {
   dispatch: (action: Action) => GameState;
   can: (action: Action) => Check;
   /** One entry per person playing. More than one starts a pass-and-play game on this device. */
-  newGame: (players: FoundingChoices[], settings?: Partial<GameSettings>) => void;
+  newGame: (players: FoundingChoices[], settings?: Partial<GameSettings>, nations?: number) => void;
   abandon: () => void;
   /** The nation the person at this device is playing right now. */
   me: NationId | null;
@@ -236,9 +236,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setHandoff(null);
     },
     can: (action) => (ref.current && meRef.current ? check(ref.current, action, meRef.current, Date.now()) : { ok: false, reason: 'No game' }),
-    newGame: (players, settings) => {
+    newGame: (players, settings, nations) => {
       const game = createGame({
-        players, day: today(), id: crypto.randomUUID(), seed: (Math.random() * 2 ** 31) | 0, now: Date.now(),
+        players, nations, day: today(), id: crypto.randomUUID(), seed: (Math.random() * 2 ** 31) | 0, now: Date.now(),
         settings: { ...settings, clock: players.length > 1 ? 'inTurn' : 'together' },
       });
       seen.current = {};

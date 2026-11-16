@@ -61,20 +61,24 @@ export function MapScreen() {
           <p className="map-hint" role="status">Choose a highlighted hex to give this army its orders</p>
         )}
         <Objectives state={state} />
-        <div className="legend">
-          <span className="eyebrow">Nations</span>
-          {state.order.map((id) => {
-            const n = state.nations[id];
-            return (
-              <div key={id} className="row gap-8" style={{ opacity: n.alive ? 1 : 0.5 }}>
-                <span className="swatch" style={{ background: n.color }} />
-                {n.name}
-                <span className="muted">{id === player.id ? '(you)' : n.alive ? `· ${stance(relation(state, player.id, id))}` : '· fallen'}</span>
-              </div>
-            );
-          })}
-          <div className="row gap-8"><span className="swatch" style={{ background: '#3A4452' }} />Unclaimed</div>
-        </div>
+        <details className="legend" open={state.order.length <= 6}>
+          <summary className="eyebrow">Nations · {state.order.filter((id) => state.nations[id].alive).length} standing</summary>
+          <ul>
+            {state.order.map((id) => {
+              const n = state.nations[id];
+              return (
+                <li key={id} style={{ opacity: n.alive ? 1 : 0.5 }}>
+                  <button type="button" onClick={() => select(n.capital)} aria-label={`Go to ${n.name}`}>
+                    <span className="swatch" style={{ background: n.color }} />
+                    {n.name}
+                    <span className="muted">{id === player.id ? '(you)' : n.alive ? `· ${stance(relation(state, player.id, id))}` : '· fallen'}</span>
+                  </button>
+                </li>
+              );
+            })}
+            <li className="row gap-8" style={{ padding: '2px 6px' }}><span className="swatch" style={{ background: '#3A4452' }} />Unclaimed</li>
+          </ul>
+        </details>
       </main>
 
       <aside className="side" aria-label="Selected hex">

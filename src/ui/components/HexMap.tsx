@@ -1,10 +1,16 @@
-import { useRef, type KeyboardEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { SpriteG } from '../../art/Sprite';
 import { TERRAIN_MARKS } from '../../art/sprites';
 import { armySize, centre, corners, key, neighbours, relation, stance, TERRAIN, type GameState, type Hex, type HexRef, type MoveKind, type NationId } from '../../game';
 
 const R = 38;
 const W = Math.sqrt(3) * R;
+/** Empty margin around the world, in world units. */
+const PAD = 24;
+const MAX_ZOOM = 1.6;
+/** A large world opens no further out than this, so hexes stay readable. */
+const MIN_READABLE = 0.85;
+const MINI = 168;
 const STAR = 'M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z';
 const HIGHLIGHT: Record<MoveKind, { stroke: string; dash?: string; word: string }> = {
   move: { stroke: '#F4C374', dash: '5 4', word: 'your army can move here' },
@@ -41,9 +47,83 @@ interface Props {
 /** The world map. One SVG; every hex is a keyboard-reachable button with a full label. */
 export function HexMap({ state, me, selected, target, highlights, onPick }: Props) {
   const ref = useRef<SVGSVGElement>(null);
+  const wrap = useRef<HTMLDivElement>(null);
   const width = state.cols * W + W / 2;
-  const height = (state.rows - 1) * 1.5 * R + 2 * R;
+  const height = (state.rows - 1) * 1.5 * R + 2 * R + 20;
   const player = me;
+  const home = centre(state.nations[me].capital, R);
+
+  // ---- The view: where on the world we are looking, and how closely -------
+  // `z` is screen pixels per world unit; (x, y) is the world point at the centre.
+  const [size, setSize] = useState({ w: 0, h: 0 });
+  const [view, setView] = useState<{ z: number; x: number; y: number } | null>(null);
+  useLayoutEffect(() => {
+    const el = wrap.current!;
+    const measure = () => setSize({ w: el.clientWidth, h: el.clientHeight });
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const fit = size.w ? Math.min(size.w / (width + PAD * 2), size.h / (height + PAD * 2)) : 1;
+  const clampView = (v: { z: number; x: number; y: number }) => {
+    const z = Math.max(fit, Math.min(MAX_ZOOM, v.z));
+    const halfW = size.w / 2 / z;
+    const halfH = size.h / 2 / z;
+    // If the whole world fits along an axis, centre it; otherwise stop at the edges.
+    const x = halfW * 2 >= width + PAD * 2 ? width / 2 : Math.max(halfW - PAD, Math.min(width + PAD - halfW, v.x));
+    const y = halfH * 2 >= height + PAD * 2 ? height / 2 : Math.max(halfH - PAD, Math.min(height + PAD - halfH, v.y));
+    return { z, x, y };
+  };
+  // Small worlds open fully in view. Large ones open on your capital, close enough to read.
+  const v = clampView(view ?? { z: Math.max(fit, MIN_READABLE), x: home.x, y: home.y });
+  const fitsAll = v.z <= fit * 1.02;
+  const zoomBy = (factor: number, around?: { x: number; y: number }) => {
+    const z = Math.max(fit, Math.min(MAX_ZOOM, v.z * factor));
+    const p = around ?? { x: v.x, y: v.y };
+    // Keep the point under the cursor where it is.
+    setView(clampView({ z, x: p.x + (v.x - p.x) * (v.z / z), y: p.y + (v.y - p.y) * (v.z / z) }));
+  };
+  const toWorld = (clientX: number, clientY: number) => {
+    const box = wrap.current!.getBoundingClientRect();
+    return { x: v.x + (clientX - box.left - size.w / 2) / v.z, y: v.y + (clientY - box.top - size.h / 2) / v.z };
+  };
+  const live = useRef({ v, zoomBy, toWorld });
+  live.current = { v, zoomBy, toWorld };
+  useEffect(() => {
+    const el = wrap.current!;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      live.current.zoomBy(e.deltaY < 0 ? 1.15 : 1 / 1.15, live.current.toWorld(e.clientX, e.clientY));
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
+
+  // Dragging pans. A press that barely moves is still a click on a hex.
+  const drag = useRef<{ sx: number; sy: number; vx: number; vy: number; moved: boolean } | null>(null);
+  const onPointerDown = (e: ReactPointerEvent) => { if (e.button === 0) drag.current = { sx: e.clientX, sy: e.clientY, vx: v.x, vy: v.y, moved: false }; };
+  const onPointerMove = (e: ReactPointerEvent) => {
+    const d = drag.current;
+    if (!d) return;
+    const dx = e.clientX - d.sx;
+    const dy = e.clientY - d.sy;
+    if (!d.moved && Math.hypot(dx, dy) < 5) return;
+    d.moved = true;
+    setView(clampView({ z: v.z, x: d.vx - dx / v.z, y: d.vy - dy / v.z }));
+  };
+  const endDrag = () => { const d = drag.current; drag.current = d?.moved ? { ...d, sx: NaN } : null; };
+
+  // Keep the selected hex in view: selecting by keyboard, from a list, or from the legend brings the map to it.
+  const selKey = key(selected);
+  useEffect(() => {
+    if (!size.w) return;
+    const p = centre(selected, R);
+    const halfW = size.w / 2 / v.z - R * 1.5;
+    const halfH = size.h / 2 / v.z - R * 1.5;
+    if (Math.abs(p.x - v.x) > halfW || Math.abs(p.y - v.y) > halfH) setView(clampView({ z: v.z, x: p.x, y: p.y }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selKey, size.w, size.h]);
   const envoy = state.nations[me].seat!.envoy;
 
   const onKey = (e: KeyboardEvent, h: Hex) => {
@@ -79,7 +159,11 @@ export function HexMap({ state, me, selected, target, highlights, onPick }: Prop
   const targetAt = target ? centre(target, R) : null;
 
   return (
-    <svg ref={ref} className="world" viewBox={`-4 -4 ${width + 8} ${height + 22}`} role="group" aria-label="World map">
+    <div ref={wrap} className="map-view" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerLeave={endDrag}
+      onClickCapture={(e) => { if (drag.current?.moved) { e.stopPropagation(); drag.current = null; } }}
+      onKeyDown={(e) => { if (e.key === '+' || e.key === '=') zoomBy(1.25); else if (e.key === '-') zoomBy(0.8); }}
+      style={{ cursor: fitsAll ? undefined : 'grab' }}>
+    <svg ref={ref} className="world" viewBox={`${v.x - size.w / 2 / v.z} ${v.y - size.h / 2 / v.z} ${size.w / v.z || 1} ${size.h / v.z || 1}`} role="group" aria-label="World map. Drag to move around; scroll or use the plus and minus keys to zoom.">
       {state.hexes.map((h) => {
         const { x, y } = centre(h, R);
         const n = h.owner ? state.nations[h.owner] : null;
@@ -139,5 +223,24 @@ export function HexMap({ state, me, selected, target, highlights, onPick }: Prop
         })}
       </g>
     </svg>
+
+      <div className="map-controls" role="group" aria-label="Map view">
+        <button type="button" aria-label="Zoom out" disabled={fitsAll} onClick={() => zoomBy(0.8)}><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg></button>
+        <button type="button" aria-label="Zoom in" disabled={v.z >= MAX_ZOOM} onClick={() => zoomBy(1.25)}><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5v14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg></button>
+        <button type="button" aria-label="Show the whole world" disabled={fitsAll} onClick={() => setView(clampView({ z: fit, x: width / 2, y: height / 2 }))}><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></button>
+        <button type="button" aria-label="Go to your capital" onClick={() => { onPick(state.nations[me].capital); setView(clampView({ z: Math.max(v.z, MIN_READABLE), x: home.x, y: home.y })); }}><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d={STAR} fill="currentColor" /></svg></button>
+      </div>
+
+      {!fitsAll && (
+        <svg className="minimap" viewBox={`0 0 ${width} ${height}`} width={MINI} height={(MINI * height) / width} role="img" aria-label="Overview of the whole world. Click to move the view."
+          onClick={(e) => { const b = e.currentTarget.getBoundingClientRect(); setView(clampView({ z: v.z, x: ((e.clientX - b.left) / b.width) * width, y: ((e.clientY - b.top) / b.height) * height })); }}>
+          {state.hexes.map((h) => {
+            const p = centre(h, R);
+            return <circle key={key(h)} cx={p.x} cy={p.y} r={R * 0.92} fill={h.terrain === 'sea' ? '#131C27' : h.owner ? state.nations[h.owner].color : '#2C3642'} />;
+          })}
+          <rect x={v.x - size.w / 2 / v.z} y={v.y - size.h / 2 / v.z} width={size.w / v.z} height={size.h / v.z} fill="rgba(255,255,255,0.08)" stroke="#FFFFFF" strokeWidth={width / MINI * 1.5} />
+        </svg>
+      )}
+    </div>
   );
 }

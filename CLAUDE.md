@@ -1,6 +1,6 @@
 # Political Empire
 
-A turn-based strategy game. Players found a political nation and shape its character by answering one political question ("dilemma") every turn. On a hexagonal world map they build businesses and services, raise armies, claim land, deal with three rival nations through an envoy, and go to war.
+A turn-based strategy game. Players found a political nation and shape its character by answering one political question ("dilemma") every turn. On a hexagonal world map they build businesses and services, raise armies, claim land, deal with rival nations through an envoy, and go to war.
 
 Two ways to play on one rules engine: alone against computer-run nations, or against other people (pass-and-play on one device today; online through Supabase is planned in `docs/backend.md`). TypeScript + React + Vite, with Supabase for accounts, cloud saves and the world ranking. Solo play is offline-first: it runs fully without a backend configured.
 
@@ -18,6 +18,7 @@ npm run build      # typecheck, then production build to dist/
 | Path | What it is |
 | --- | --- |
 | `src/game/` | The rules. Pure, UI-free, unit-tested. `applyAction(state, action)` is the only way state changes. |
+| `src/game/worldgen.ts` | The map generator: land from a seed and coordinates, capitals, fair starts. |
 | `src/game/content/` | Data: buildings, units, terrain, eras, rival nations, forms of government and their powers, objectives, the daily questions, and every balance number (`BALANCE`). |
 | `src/backend/` | The Supabase client and every call to it. Nothing else imports `@supabase/supabase-js`. See `docs/backend.md`. |
 | `supabase/migrations/` | Database schema and row-level security policies. |
@@ -37,7 +38,7 @@ Live design canvas (the prototypes, rendered): https://claude.ai/artifact/H8UMbB
 
 - Keep game rules in `src/game/`. Screens never compute rules themselves: they call the rules module's checks (`check`, `canBuild`, `forecast`, …) and dispatch actions.
 - Inside `src/game/`, `applyAction` clones the state once and the helpers it calls mutate that draft. Randomness comes from the seeded RNG stored in the state, so the same actions always give the same game.
-- Never assume which nation is "the player". A world has one to four human-run nations (`state.humans`); every action and check takes the acting nation's id, and per-person state lives in `nation.seat`. Screens get the viewer's nation as `me` from the store.
+- Never assume which nation is "the player". A world has 4 to 12 nations, any number of them human-run (`state.humans`); every action and check takes the acting nation's id, and per-person state lives in `nation.seat`. Screens get the viewer's nation as `me` from the store.
 - Rival nations go through the same checks and costs as the player. Don't give the AI private rules.
 - Hex coordinates follow `docs/game-model.md` (pointy-top, odd-r offset storage, cube distance).
 - Supabase is the backend and auth provider. Design new features with it in mind, but keep the game playable offline: backend calls must fail quietly and never block play.
