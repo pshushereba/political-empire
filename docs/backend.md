@@ -40,8 +40,10 @@ The rules engine already supports it: one to four human-run nations in a world, 
 
 Open design points, in rough order of importance:
 
-- **How long a turn lasts.** A day per turn makes the daily question literal and gives a reason to return; minutes per turn suits a single sitting. The engine does not care. Both could be offered.
-- **Hidden information.** Today the whole state is visible to every player (treasuries, armies, other players' questions). Online, the server should send each player a filtered view.
+- **How long a turn lasts** is decided: it is a setting of each game (`turnSeconds`, with a day as one of the options), enforced by the server passing its own clock to the rules. Same for the question timer.
+- **Hidden information** is decided for now: everything is visible.
+- **More than four players.** The rules loop over whatever nations exist; the limit is the fixed 14 × 10 map with four capitals, four nation colours and three written rivals. Lifting it needs a map generator sized to the player count, more nation colours (a design-token decision), and a pool of computer nations to draw from. That covers friends games and matched public games of, say, up to 8 or 12.
+- **A single persistent world for everyone** is a different design, not a bigger number: players join and leave at any time, turns must tick on a schedule rather than wait for everyone, new nations need protection and somewhere to spawn, and the state can no longer be one JSON document. Worth deciding whether open play means that, or matched games with a global ranking.
 - **Who moves first.** Actions resolve the moment they arrive, so within a turn the faster player has an edge in a race for the same hex. Resolving all orders together at the end of the turn is fairer and a bigger change.
 - **Fair starts.** A symmetrical or generated map.
 

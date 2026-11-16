@@ -215,6 +215,16 @@ interface Dilemma {
 - A choice with `requires` is locked until the stat or axis reaches its threshold.
 - To add a question, add an object to the `DILEMMAS` array. No code changes.
 
+### Pace
+
+Each game has settings chosen when it is created (`state.settings`):
+
+- **Time to answer the question** (`questionSeconds`: off, 30 s, 1 min, 2 min). When on, the day's question is sealed. Opening it starts the clock. If it runs out, the council picks one of the available answers at random and the nation loses 3 stability on top of that answer's effects.
+- **Time for each turn** (`turnSeconds`: off, or any length; a day is 86400). When it runs out the player's turn is ended for them, answering the question by default first if they hadn't.
+- **Whose clock runs when** (`clock`): `together` starts everyone's turn clock when the turn begins, for online play. `inTurn` starts a player's clock when they take the device, for pass-and-play.
+
+The rules never read the time. The caller passes `now` to `applyAction`, and an `expire` action is accepted only if a deadline has really passed. The browser does this for local games; a server will do it for online ones, so a player cannot stop their own clock.
+
 ## 11. Reasons to come back
 
 - **Objectives** (`content/objectives.ts`): three are always active, taken in order from a list of 21, from "finish 3 buildings" to "reach the Third Era". Completing one pays a reward and brings in the next. Each is a metric and a target, so adding one is a line of data.

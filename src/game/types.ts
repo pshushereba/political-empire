@@ -101,9 +101,11 @@ export interface Nation {
 export interface Seat {
   envoy: Envoy;
   /** Today's question. `choice` is null until the player decides. */
-  dilemma: { id: string; choice: number | null } | null;
+  dilemma: { id: string; choice: number | null; /** When the player unsealed it, if questions are timed. */ openedAt: number | null } | null;
   /** Dilemma ids not yet drawn in this cycle. */
   deck: string[];
+  /** When this player's clock for the current turn started (ms). 0 if unknown. */
+  turnStartedAt: number;
   objectives: { active: string[]; done: string[] };
   /** Real-world visits: the last calendar day played and the run of consecutive days. */
   checkIn: { day: string; streak: number };
@@ -198,6 +200,7 @@ export interface GameState {
   rng: number;
   /** Nations run by people, in turn order. Every other nation is run by the computer. */
   humans: NationId[];
+  settings: GameSettings;
   cols: number;
   rows: number;
   /** Row-major: index = r * cols + c. */
@@ -226,7 +229,20 @@ export interface FoundingChoices {
   flag: Flag;
 }
 
+/** How fast a world moves. Chosen when the game is created. */
+export interface GameSettings {
+  /** Seconds to answer the daily question once it is opened. 0 = no limit. */
+  questionSeconds: number;
+  /** Seconds each turn lasts before it is ended for you. 0 = no limit. A day is 86400. */
+  turnSeconds: number;
+  /** 'together': everyone's turn clock starts when the turn begins (online). 'inTurn': yours starts when you take the device (pass-and-play). */
+  clock: 'together' | 'inTurn';
+}
+
 export interface GameSetup {
+  settings?: Partial<GameSettings>;
+  /** The time the game is created (ms), for the first turn's clock. */
+  now?: number;
   /** One entry per human-run nation, in turn order (1–4). The rest are run by the computer. */
   players: FoundingChoices[];
   seed?: number;
@@ -248,6 +264,12 @@ export type Action =
   | { type: 'diplomacy'; nation: NationId; act: DiplomacyAct }
   | { type: 'power'; power: string }
   | { type: 'respond'; proposal: string; accept: boolean }
+  /** Unseal a timed question and start its clock. */
+  | { type: 'openQuestion' }
+  /** Pass-and-play: this player has taken the device. */
+  | { type: 'startClock' }
+  /** A clock has run out: the council answers for you, or your turn is ended. */
+  | { type: 'expire' }
   | { type: 'checkIn'; day: string }
   | { type: 'endTurn' };
 

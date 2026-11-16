@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { DILEMMA_BY_ID, FACTIONS, GOVERNMENT_BY_ID, governmentAfter, requirementMet, scaledEffects, type GovernmentId } from '../../game';
+import { BALANCE, DILEMMA_BY_ID, FACTIONS, questionDeadline, questionSealed, GOVERNMENT_BY_ID, governmentAfter, requirementMet, scaledEffects, type GovernmentId } from '../../game';
 import { EffectChips } from '../components/common';
-import { useGame } from '../store';
+import { clockText, useGame, useNow } from '../store';
 
 /** The daily question: one political decision per turn that shapes the nation. */
 export function CouncilScreen() {
@@ -9,6 +9,9 @@ export function CouncilScreen() {
   const [picked, setPicked] = useState<number | null>(null);
   const player = state.nations[me];
   const today = player.seat!.dilemma;
+  const deadline = questionDeadline(state, me);
+  const now = useNow(deadline !== null);
+  const limit = state.settings.questionSeconds;
   if (!today) return null;
   const d = DILEMMA_BY_ID[today.id];
   const decided = today.choice;
@@ -38,8 +41,35 @@ export function CouncilScreen() {
     );
   }
 
+  if (questionSealed(state, me)) {
+    return (
+      <div className="page">
+        <div className="wrap" style={{ maxWidth: 640 }}>
+          <div className="col gap-8">
+            <span className="eyebrow amber">Today’s question · Turn {state.turn}</span>
+            <h1 className="h-dilemma">The council is waiting</h1>
+          </div>
+          <p className="body-large">Today’s question is sealed. Once you open it you have {limit >= 60 ? `${limit / 60} minute${limit > 60 ? 's' : ''}` : `${limit} seconds`} to answer.</p>
+          <p className="muted">If the time runs out, the council decides without you and the dithering costs {BALANCE.indecision} stability. Open it when you are ready to give it your full attention.</p>
+          <div className="row">
+            <button type="button" className="btn primary" style={{ padding: '0 32px' }} onClick={() => dispatch({ type: 'openQuestion' })}>Open the question</button>
+            <a className="btn" href="#/">Not yet</a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const left = deadline !== null ? deadline - now : null;
   return (
     <div className="page">
+      {left !== null && (
+        <div className={`countdown ${left < 15_000 ? 'urgent' : ''}`} role="timer" aria-label={`${Math.ceil(left / 1000)} seconds left to answer`}>
+          <span className="mono">{clockText(left)}</span>
+          <div className="bar grow"><span style={{ width: `${Math.max(0, Math.min(100, (left / (limit * 1000)) * 100))}%` }} /></div>
+          <span className="small">to answer, or the council decides for you</span>
+        </div>
+      )}
       <div className="wrap council">
         <div className="col gap-24">
           <div className="row gap-8">
@@ -90,7 +120,7 @@ export function CouncilScreen() {
             {picked === null ? <span className="muted small">Pick a response to see what it will change.</span> : <EffectChips effects={scaledEffects(state, d.choices[picked].effects, me)} />}
           </div>
           <button type="submit" className="btn primary block" disabled={picked === null}>Issue decree</button>
-          <a className="btn block" href="#/">Decide later</a>
+          {left === null && <a className="btn block" href="#/">Decide later</a>}
           <p className="small muted">You are a {GOVERNMENT_BY_ID[player.government as GovernmentId].name.toLowerCase()}. Answers that move Authority and Liberty far enough change that, and with it what your state can do. The turn cannot end until the council has its answer.</p>
         </form>
       </div>

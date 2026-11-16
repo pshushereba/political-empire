@@ -198,6 +198,8 @@ export const BALANCE = {
   hegemonyShare: 0.6,
   unrestBelow: 25,
   claimBase: 8,
+  /** Stability lost when a timed question runs out and the council answers for you. */
+  indecision: 3,
   /** Turns an unanswered proposal between players stays open. */
   proposalTurns: 2,
   /** Stability lost when the form of government changes. */

@@ -8,6 +8,10 @@ import { loadLegacy } from '../legacy';
 import { Flag, Logo } from '../components/common';
 import { go, useStore } from '../store';
 
+const QUESTION_TIMES = [{ s: 0, name: 'No limit' }, { s: 30, name: '30 seconds' }, { s: 60, name: '1 minute' }, { s: 120, name: '2 minutes' }];
+const TURN_TIMES = [{ s: 0, name: 'No limit' }, { s: 180, name: '3 minutes' }, { s: 300, name: '5 minutes' }, { s: 600, name: '10 minutes' }];
+const PICKED = { borderColor: 'var(--accent)', background: 'var(--surface-amber)' };
+
 const PATTERNS = [
   { id: 'tricolour' as const, name: 'Tricolour' },
   { id: 'bands' as const, name: 'Bands' },
@@ -20,10 +24,12 @@ export function Founding() {
   /** How many people are playing on this device, and the nations already founded. */
   const [count, setCount] = useState(1);
   const [done, setDone] = useState<FoundingChoices[]>([]);
+  const [questionSeconds, setQuestionSeconds] = useState(0);
+  const [turnSeconds, setTurnSeconds] = useState(0);
   const seatNo = done.length + 1;
   const last = seatNo >= count;
   const submit = () => {
-    if (last) { newGame([...done, c]); go('/'); return; }
+    if (last) { newGame([...done, c], { questionSeconds, turnSeconds: count > 1 ? turnSeconds : 0 }); go('/'); return; }
     setDone([...done, c]);
     const pair = FLAG_PAIRS[seatNo % FLAG_PAIRS.length];
     setC({ ...DEFAULT_FOUNDING, flag: { pattern: 'tricolour', a: pair.a, b: pair.b } });
@@ -68,6 +74,25 @@ export function Founding() {
                 {[2, 3, 4].map((n) => <button key={n} type="button" className="btn small" aria-pressed={count === n} style={count === n ? { borderColor: 'var(--accent)', background: 'var(--surface-amber)' } : undefined} onClick={() => setCount(n)}>{n}</button>)}
               </div>
             )}
+          </div>
+        )}
+        {done.length === 0 && (
+          <div className="col gap-8">
+            <h2 className="h-section">Pace</h2>
+            <div className="row gap-8 wrap-row" role="group" aria-label="Time to answer the daily question">
+              <span className="small muted" style={{ width: 150 }}>Time to answer the question</span>
+              {QUESTION_TIMES.map((t) => <button key={t.s} type="button" className="btn small" aria-pressed={questionSeconds === t.s} style={questionSeconds === t.s ? PICKED : undefined} onClick={() => setQuestionSeconds(t.s)}>{t.name}</button>)}
+            </div>
+            {count > 1 && (
+              <div className="row gap-8 wrap-row" role="group" aria-label="Time for each player’s turn">
+                <span className="small muted" style={{ width: 150 }}>Time for each turn</span>
+                {TURN_TIMES.map((t) => <button key={t.s} type="button" className="btn small" aria-pressed={turnSeconds === t.s} style={turnSeconds === t.s ? PICKED : undefined} onClick={() => setTurnSeconds(t.s)}>{t.name}</button>)}
+              </div>
+            )}
+            <p className="small muted">
+              {questionSeconds ? 'The question stays sealed until you open it. Run out of time and the council answers for you, at a cost in stability.' : 'With no limit you can read the question and come back to it.'}
+              {count > 1 && turnSeconds ? ' Each player’s clock starts when they take the device; when it runs out their turn ends.' : ''}
+            </p>
           </div>
         )}
         {done.length > 0 && <p className="small muted">Already founded: {done.map((d, i) => d.name.trim() || `Player ${i + 1}`).join(', ')}.</p>}

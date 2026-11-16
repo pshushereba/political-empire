@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   applyAction, armyAt, armySize, canBuild, check, createGame, DEFAULT_FOUNDING, DILEMMA_BY_ID, distance, economy,
   forecast, hexAt, key, MAX_STACK, modifiers, neighbours, ownedHexes, reachable, relation, requirementMet, stance,
-  BUILDING_BY_ID, buildCost, buildingYield, coord, governmentFor, placementBonusCount, placementEffect, score, allReady, type FoundingChoices, type GameState, type Action,
+  BUILDING_BY_ID, buildCost, buildingYield, coord, governmentFor, placementBonusCount, placementEffect, score, allReady, questionDeadline, questionSealed, turnDeadline, type FoundingChoices, type GameState, type Action,
 } from './index';
 
 const fresh = (over: Partial<FoundingChoices> & { seed?: number; day?: string } = {}): GameState => {
@@ -366,5 +366,54 @@ describe('several players in one world', () => {
       for (const a of s.armies) expect(hexAt(s, a).owner).toBe(a.owner);
     }
     expect(s.turn).toBeGreaterThan(50);
+  });
+});
+
+describe('clocks', () => {
+  const timed = (settings = {}): GameState => createGame({ players: [DEFAULT_FOUNDING], seed: 7, now: 1_000, settings: { questionSeconds: 60, ...settings } });
+
+  it('seals a timed question until the player opens it', () => {
+    let s = timed();
+    expect(questionSealed(s, 'veyra')).toBe(true);
+    expect(check(s, { type: 'decide', choice: 0 }, 'veyra', 2_000).ok).toBe(false);
+    s = applyAction(s, { type: 'openQuestion' }, 'veyra', 5_000);
+    expect(questionDeadline(s, 'veyra')).toBe(65_000);
+    expect(check(s, { type: 'expire' }, 'veyra', 64_999).ok).toBe(false);
+    s = applyAction(s, { type: 'decide', choice: 1 }, 'veyra', 30_000);
+    expect(seat(s).dilemma!.choice).toBe(1);
+    expect(questionDeadline(s, 'veyra')).toBeNull();
+  });
+
+  it('has the council decide, at a cost, when the minute runs out', () => {
+    let s = applyAction(timed(), { type: 'openQuestion' }, 'veyra', 5_000);
+    const before = s.nations.veyra.stats.stability;
+    s = applyAction(s, { type: 'expire' }, 'veyra', 65_000);
+    const picked = seat(s).dilemma!.choice!;
+    expect(picked).not.toBeNull();
+    expect(picked).not.toBe(3); // the locked choice is never picked
+    const own = DILEMMA_BY_ID['docks-strike'].choices[picked].effects.find((e) => e.target === 'stability')!.delta;
+    const upheaval = s.nations.veyra.government === 'council' ? 0 : 5;
+    expect(s.nations.veyra.stats.stability).toBe(before + own - upheaval - 3);
+    expect(s.turn).toBe(1); // the turn itself goes on
+  });
+
+  it('ends an overdue turn for a player, answering for them if need be', () => {
+    let s = createGame({ players: [DEFAULT_FOUNDING, DEFAULT_FOUNDING], seed: 7, now: 1, settings: { turnSeconds: 180, clock: 'together' } });
+    s = applyAction(s, { type: 'decide', choice: 1 }, 'veyra', 10_000);
+    s = applyAction(s, { type: 'endTurn' }, 'veyra', 20_000);
+    expect(turnDeadline(s, 'veyra')).toBeNull();
+    expect(turnDeadline(s, 'kesh')).toBe(180_001);
+    expect(check(s, { type: 'expire' }, 'kesh', 179_000).ok).toBe(false);
+    s = applyAction(s, { type: 'expire' }, 'kesh', 180_001);
+    expect(s.turn).toBe(2); // the absent player no longer holds up the world
+    expect(s.nations.kesh.decisions).toHaveLength(1);
+    expect(turnDeadline(s, 'kesh')).toBe(360_001);
+  });
+
+  it('starts a pass-and-play clock when the player takes the device', () => {
+    let s = createGame({ players: [DEFAULT_FOUNDING, DEFAULT_FOUNDING], seed: 7, now: 0, settings: { turnSeconds: 180, clock: 'inTurn' } });
+    s = applyAction(s, { type: 'startClock' }, 'kesh', 500_000);
+    expect(turnDeadline(s, 'kesh')).toBe(680_000);
+    expect(check(timed(), { type: 'startClock' }, 'veyra', 1).ok).toBe(false);
   });
 });

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Sprite } from '../../art/Sprite';
 import {
   activeObjectives, armyAt, armySize, armySpeed, BUILDING_BY_ID, BUILDINGS, buildCost, CATEGORIES, check as checkAction, claimCost, coord, defencePower, describeUnits,
-  DILEMMA_BY_ID, envoyTravelTurns, forecast, hexAt, isCutOff, isRecruitSite, key, LOTS_PER_HEX, MAX_STACK, movingUnits, reachable,
+  DILEMMA_BY_ID, questionSealed, envoyTravelTurns, forecast, hexAt, isCutOff, isRecruitSite, key, LOTS_PER_HEX, MAX_STACK, movingUnits, reachable,
   recruitCost, relation, same, stance, TERRAIN, UNIT_BY_ID, UNIT_IDS, UNITS,
   type Army, type BuildingCategory, type GameState, type Hex, type HexRef, type MoveOption, type UnitCounts,
 } from '../../game';
@@ -119,9 +119,9 @@ export function MapScreen() {
           {question && (
             <a href="#/council" className={`question-card ${answered ? '' : 'open'}`}>
               <span className="small" style={{ fontWeight: 600, color: answered ? 'var(--text-muted)' : 'var(--accent)' }}>
-                {answered ? 'Today’s question · Decided' : `Today’s question · ${question.category}`}
+                {answered ? 'Today’s question · Decided' : questionSealed(state, me) ? `Today’s question · timed` : `Today’s question · ${question.category}`}
               </span>
-              <span className="display" style={{ fontSize: 17 }}>{question.title}</span>
+              <span className="display" style={{ fontSize: 17 }}>{questionSealed(state, me) ? 'Sealed. Open it at the Council' : question.title}</span>
               {answered && <span className="small muted">{question.choices[seat.dilemma!.choice!].title}</span>}
             </a>
           )}

@@ -9,7 +9,7 @@ import { newRelation, pairKey } from './relations';
 import { Rng } from './rng';
 import type { AxisId, FoundingChoices, GameSetup, GameState, Hex, Nation, Terrain } from './types';
 
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 
 const LAND: Terrain[] = ['plains', 'forest', 'hills', 'highlands', 'farmland'];
 const hash = (c: number, r: number): number => ((c * 73856093) ^ (r * 19349663)) >>> 0;
@@ -90,7 +90,8 @@ export function createGame(setup: GameSetup): GameState {
       });
       n.seat = {
         envoy: { ...slot.capital, dest: null, arrivesTurn: 0 },
-        dilemma: { id: FIRST_DILEMMA, choice: null },
+        dilemma: { id: FIRST_DILEMMA, choice: null, openedAt: null },
+        turnStartedAt: setup.now ?? 0,
         deck: rng.shuffle(DILEMMAS.map((d) => d.id).filter((id) => id !== FIRST_DILEMMA)),
         objectives: { active: OBJECTIVES.slice(0, ACTIVE_OBJECTIVES).map((o) => o.id), done: [] },
         checkIn: { day: setup.day ?? '', streak: 1 },
@@ -132,7 +133,7 @@ export function createGame(setup: GameSetup): GameState {
   }
 
   const state: GameState = {
-    version: SAVE_VERSION, id: setup.id ?? `local-${(setup.seed ?? 1) >>> 0}`, turn: 1, rng: 0, humans, cols: COLS, rows: ROWS, hexes, nations, order,
+    version: SAVE_VERSION, id: setup.id ?? `local-${(setup.seed ?? 1) >>> 0}`, turn: 1, rng: 0, humans, settings: { questionSeconds: 0, turnSeconds: 0, clock: 'together', ...setup.settings }, cols: COLS, rows: ROWS, hexes, nations, order,
     armies: [], nextArmyId: 1, relations: {}, proposals: [],
     log: [], status: 'playing', winner: null, outcome: '',
   };

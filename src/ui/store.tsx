@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { activeHumans, applyAction, check, checkInBonus, createGame, reportFor, SAVE_VERSION, type Action, type Check, type Effect, type FoundingChoices, type GameState, type LogEntry, type NationId } from '../game';
+import { activeHumans, applyAction, check, checkInBonus, createGame, reportFor, SAVE_VERSION, type Action, type Check, type Effect, type FoundingChoices, type GameSettings, type GameState, type LogEntry, type NationId } from '../game';
 import { backendConfigured, supabase } from '../backend/client';
 import { deleteSave, fetchSave, pushSave, submitScore, type CloudSave } from '../backend/cloud';
 import { recordLegacy } from './legacy';
@@ -29,7 +29,7 @@ interface Store {
   dispatch: (action: Action) => GameState;
   can: (action: Action) => Check;
   /** One entry per person playing. More than one starts a pass-and-play game on this device. */
-  newGame: (players: FoundingChoices[]) => void;
+  newGame: (players: FoundingChoices[], settings?: Partial<GameSettings>) => void;
   abandon: () => void;
   /** The nation the person at this device is playing right now. */
   me: NationId | null;
@@ -78,6 +78,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const meRef = useRef(me);
   meRef.current = me;
   const [handoff, setHandoff] = useState<NationId | null>(null);
+  const handoffRef = useRef(handoff);
+  handoffRef.current = handoff;
   /** The last turn each player has seen begin, so each gets their own report. */
   const seen = useRef<Record<NationId, number>>({});
   const begin = (s: GameState, id: NationId) => {
@@ -101,11 +103,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const dispatch = useCallback((action: Action): GameState => {
     const prev = ref.current!;
     const id = meRef.current!;
-    const next = applyAction(prev, action, id);
+    const next = applyAction(prev, action, id, Date.now());
     if (next !== prev) {
       ref.current = next;
       setState(next);
-      if (action.type === 'endTurn' && next.status === 'playing') {
+      // My turn is over if I ended it, or a clock ended it for me.
+      const over = next.turn > prev.turn || (next.nations[id].seat?.ready && !prev.nations[id].seat?.ready);
+      if (over && next.status === 'playing') {
         const up = whoIsUp(next);
         // Alone at the device, carry straight on. With others, hand it over first.
         if (up === id) begin(next, id);
@@ -114,6 +118,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
     return next;
   }, []);
+
+  // Clocks: when the question's minute or the turn's time runs out, tell the rules.
+  // The rules decide whether anything is actually due.
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const s = ref.current;
+      const id = meRef.current;
+      if (!s || !id || handoffRef.current || s.status !== 'playing') return;
+      if (check(s, { type: 'expire' }, id, Date.now()).ok) dispatch({ type: 'expire' });
+    }, 500);
+    return () => clearInterval(timer);
+  }, [dispatch]);
 
   // The daily run: check in when the game opens and whenever the tab comes back into view.
   useEffect(() => {
@@ -209,10 +225,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     dispatch,
     me,
     handoff,
-    acceptHandoff: () => { if (ref.current && handoff) begin(ref.current, handoff); setHandoff(null); },
-    can: (action) => (ref.current && meRef.current ? check(ref.current, action, meRef.current) : { ok: false, reason: 'No game' }),
-    newGame: (players) => {
-      const game = createGame({ players, day: today(), id: crypto.randomUUID(), seed: (Math.random() * 2 ** 31) | 0 });
+    acceptHandoff: () => {
+      let s = ref.current;
+      if (s && handoff) {
+        // The clock for a shared device starts when its player takes it, not while it is being passed.
+        const started = applyAction(s, { type: 'startClock' }, handoff, Date.now());
+        if (started !== s) { s = started; ref.current = s; setState(s); }
+        begin(s, handoff);
+      }
+      setHandoff(null);
+    },
+    can: (action) => (ref.current && meRef.current ? check(ref.current, action, meRef.current, Date.now()) : { ok: false, reason: 'No game' }),
+    newGame: (players, settings) => {
+      const game = createGame({
+        players, day: today(), id: crypto.randomUUID(), seed: (Math.random() * 2 ** 31) | 0, now: Date.now(),
+        settings: { ...settings, clock: players.length > 1 ? 'inTurn' : 'together' },
+      });
       seen.current = {};
       setReport(null);
       setHandoff(null);
@@ -264,4 +292,22 @@ export function useRoute(): string {
 
 export function go(path: string): void {
   window.location.hash = path;
+}
+
+/** The current time, refreshed a few times a second while `active`. For countdowns. */
+export function useNow(active: boolean): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!active) return;
+    setNow(Date.now());
+    const t = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(t);
+  }, [active]);
+  return now;
+}
+
+/** 75 → "1:15". */
+export function clockText(ms: number): string {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }

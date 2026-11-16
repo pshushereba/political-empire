@@ -273,10 +273,58 @@ function payObjectives(state: GameState): void {
   }
 }
 
+// ---- Clocks ----------------------------------------------------------------
+// The rules never read the time. Whoever calls them (the browser, or a server)
+// passes `now`, so the same code enforces a deadline wherever it runs.
+
+/** When a nation's opened, unanswered question runs out (ms), or null if it isn't on a clock. */
+export function questionDeadline(state: GameState, id: NationId): number | null {
+  const d = state.nations[id].seat?.dilemma;
+  if (!d || d.choice !== null || d.openedAt === null || state.settings.questionSeconds <= 0) return null;
+  return d.openedAt + state.settings.questionSeconds * 1000;
+}
+
+/** When a nation's turn is ended for it (ms), or null if turns aren't timed or it has already ended its turn. */
+export function turnDeadline(state: GameState, id: NationId): number | null {
+  const seat = state.nations[id].seat;
+  if (!seat || seat.ready || !seat.turnStartedAt || state.settings.turnSeconds <= 0) return null;
+  return seat.turnStartedAt + state.settings.turnSeconds * 1000;
+}
+
+/** A timed question that hasn't been unsealed yet. */
+export function questionSealed(state: GameState, id: NationId): boolean {
+  const d = state.nations[id].seat?.dilemma;
+  return !!d && d.choice === null && d.openedAt === null && state.settings.questionSeconds > 0;
+}
+
+function decide(state: GameState, id: NationId, index: number): void {
+  const seat = state.nations[id].seat!;
+  const dilemma = DILEMMA_BY_ID[seat.dilemma!.id];
+  const choice = dilemma.choices[index];
+  const effects = scaledEffects(state, choice.effects, id);
+  applyEffects(state, effects, id);
+  seat.dilemma!.choice = index;
+  state.nations[id].decisions.push({ turn: state.turn, dilemmaId: dilemma.id, title: dilemma.title, choice: choice.title, effects });
+  refreshGovernment(state, id);
+}
+
+/** Time ran out: the council picks for the player, and the nation pays for the dithering. */
+function decideByDefault(state: GameState, id: NationId, rng: Rng): void {
+  const seat = state.nations[id].seat!;
+  const dilemma = DILEMMA_BY_ID[seat.dilemma!.id];
+  const open = dilemma.choices.map((c, i) => ({ c, i })).filter(({ c }) => !c.requires || requirementMet(state, id, c.requires));
+  const pick = open[rng.int(open.length)];
+  decide(state, id, pick.i);
+  const n = state.nations[id];
+  n.stats.stability = clamp(n.stats.stability - BALANCE.indecision, 0, 100);
+  state.log.push({ turn: state.turn, kind: 'info', to: id, important: true,
+    text: `Time ran out on “${dilemma.title}”. The council decided without you: ${pick.c.title}. The dithering cost ${BALANCE.indecision} stability.` });
+}
+
 // ---- Reducer ---------------------------------------------------------------
 
 /** Why the nation `id` can't do this right now, or ok. `id` must be run by a person. */
-export function check(state: GameState, action: Action, id: NationId): Check {
+export function check(state: GameState, action: Action, id: NationId, now = 0): Check {
   if (state.status !== 'playing') return no('The game is over');
   const seat = state.nations[id]?.seat;
   if (!seat) return no('Not a player’s nation');
@@ -306,6 +354,7 @@ export function check(state: GameState, action: Action, id: NationId): Check {
     case 'decide': {
       if (!seat.dilemma) return no('Nothing to decide');
       if (seat.dilemma.choice !== null) return no('Already decided today');
+      if (questionSealed(state, id)) return no('Open the question first');
       const choice = DILEMMA_BY_ID[seat.dilemma.id].choices[action.choice];
       if (!choice) return no('No such choice');
       if (choice.requires && !requirementMet(state, id, choice.requires)) return no(choice.requires.label);
@@ -319,6 +368,15 @@ export function check(state: GameState, action: Action, id: NationId): Check {
       return canUsePower(state, id, action.power);
     case 'checkIn':
       return /^\d{4}-\d{2}-\d{2}$/.test(action.day) && (!seat.checkIn.day || dayNumber(action.day) > dayNumber(seat.checkIn.day)) ? yes : no('Already checked in today');
+    case 'openQuestion':
+      return seat.dilemma && seat.dilemma.choice === null && seat.dilemma.openedAt === null ? yes : no('Nothing to open');
+    case 'startClock':
+      return state.settings.clock === 'inTurn' ? yes : no('Clocks start together in this game');
+    case 'expire': {
+      const q = questionDeadline(state, id);
+      const t = turnDeadline(state, id);
+      return (q !== null && now >= q) || (t !== null && now >= t) ? yes : no('Nothing has run out');
+    }
     case 'endTurn':
       return seat.dilemma && seat.dilemma.choice === null ? no('Answer today’s question first') : yes;
   }
@@ -329,8 +387,8 @@ export function check(state: GameState, action: Action, id: NationId): Check {
  * object if the action isn't allowed. The same function serves a solo game in
  * the browser and a shared game on a server, where `id` comes from the session.
  */
-export function applyAction(state: GameState, action: Action, id: NationId): GameState {
-  if (!check(state, action, id).ok) return state;
+export function applyAction(state: GameState, action: Action, id: NationId, now = 0): GameState {
+  if (!check(state, action, id, now).ok) return state;
   const s: GameState = structuredClone(state);
   const seat = s.nations[id].seat!;
   const rng = new Rng(s.rng);
@@ -364,14 +422,24 @@ export function applyAction(state: GameState, action: Action, id: NationId): Gam
       seat.envoy.arrivesTurn = s.turn + envoyTravelTurns(s, id, action.to);
       seat.envoy.dest = { c: action.to.c, r: action.to.r };
       break;
-    case 'decide': {
-      const dilemma = DILEMMA_BY_ID[seat.dilemma!.id];
-      const choice = dilemma.choices[action.choice];
-      const effects = scaledEffects(s, choice.effects, id);
-      applyEffects(s, effects, id);
-      seat.dilemma!.choice = action.choice;
-      s.nations[id].decisions.push({ turn: s.turn, dilemmaId: dilemma.id, title: dilemma.title, choice: choice.title, effects });
-      refreshGovernment(s, id);
+    case 'decide':
+      decide(s, id, action.choice);
+      break;
+    case 'openQuestion':
+      seat.dilemma!.openedAt = now;
+      break;
+    case 'startClock':
+      seat.turnStartedAt = now;
+      break;
+    case 'expire': {
+      const t = turnDeadline(s, id);
+      const turnOver = t !== null && now >= t;
+      if (seat.dilemma && seat.dilemma.choice === null) decideByDefault(s, id, rng);
+      if (turnOver) {
+        seat.ready = true;
+        s.log.push({ turn: s.turn, kind: 'info', to: id, text: 'Your time for the turn ran out.' });
+        if (allReady(s)) resolveTurn(s, rng, now);
+      }
       break;
     }
     case 'diplomacy':
@@ -396,7 +464,7 @@ export function applyAction(state: GameState, action: Action, id: NationId): Gam
     case 'endTurn':
       // The world moves on only when everyone still playing is ready.
       seat.ready = true;
-      if (allReady(s)) resolveTurn(s, rng);
+      if (allReady(s)) resolveTurn(s, rng, now);
       break;
   }
   if (s.status === 'playing') payObjectives(s);

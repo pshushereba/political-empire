@@ -100,7 +100,7 @@ function drawDilemma(state: GameState, id: NationId, rng: Rng): void {
   }
   const index = seat.deck.findIndex(fits);
   const [next] = seat.deck.splice(index === -1 ? 0 : index, 1);
-  seat.dilemma = { id: next, choice: null };
+  seat.dilemma = { id: next, choice: null, openedAt: null };
 }
 
 function moveEnvoy(state: GameState, id: NationId): void {
@@ -122,7 +122,7 @@ export function allReady(state: GameState): boolean {
  * Close the world's turn: computer-run nations act, every nation's books are
  * settled, and a new day begins for everyone. Runs when all players are ready.
  */
-export function resolveTurn(state: GameState, rng: Rng): void {
+export function resolveTurn(state: GameState, rng: Rng, now: number): void {
   for (const id of state.order) {
     if (!state.nations[id].seat && state.status === 'playing') runAi(state, id, rng);
   }
@@ -141,6 +141,7 @@ export function resolveTurn(state: GameState, rng: Rng): void {
   for (const a of state.armies) a.moved = 0;
   for (const id of activeHumans(state)) {
     state.nations[id].seat!.ready = false;
+    state.nations[id].seat!.turnStartedAt = now;
     drawDilemma(state, id, rng);
   }
   if (state.log.length > 400) state.log = state.log.slice(-400);

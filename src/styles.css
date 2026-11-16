@@ -188,3 +188,10 @@ table.ledger tr.total td { border-bottom: 0; font-weight: 600; }
 .objectives[open] summary { margin-bottom: 10px; }
 .objectives li { display: flex; flex-direction: column; gap: 4px; }
 .objectives .bar { height: 5px; }
+
+/* Countdown for a timed question */
+.countdown { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 16px; padding: 10px 24px; background: var(--surface-amber); border-bottom: 1px solid var(--accent); }
+.countdown .mono { font-size: 22px; min-width: 64px; }
+.countdown.urgent { background: #3a2018; border-bottom-color: var(--negative); }
+.countdown.urgent .bar > span { background: var(--negative); }
+.countdown.urgent .mono { color: var(--negative); }

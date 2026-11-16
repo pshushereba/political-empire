@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { economy, ERAS, formatPopulation, governmentOf, score } from '../game';
+import { economy, ERAS, formatPopulation, governmentOf, score, turnDeadline } from '../game';
 import { EffectChips, Logo, signed } from './components/common';
 import { DistrictScreen } from './screens/DistrictScreen';
 import { CouncilScreen } from './screens/CouncilScreen';
@@ -7,7 +7,7 @@ import { DiplomacyScreen } from './screens/DiplomacyScreen';
 import { Founding } from './screens/Founding';
 import { MapScreen } from './screens/MapScreen';
 import { NationScreen } from './screens/NationScreen';
-import { useGame, useRoute, useStore } from './store';
+import { clockText, useGame, useNow, useRoute, useStore } from './store';
 
 const NAV = [
   { path: '/', label: 'Map' },
@@ -22,6 +22,8 @@ function Header({ route }: { route: string }) {
   const n = state.nations[me];
   const today = n.seat!.dilemma;
   const offers = state.proposals.filter((p) => p.to === me).length;
+  const ends = turnDeadline(state, me);
+  const now = useNow(ends !== null);
   const eco = economy(state, n.id);
   const open = today && today.choice === null ? 1 : 0;
   const section = '/' + (route.split('/')[1] ?? '');
@@ -47,7 +49,7 @@ function Header({ route }: { route: string }) {
       </dl>
       <div className="era">
         <span className="eyebrow">{state.humans.length > 1 ? `${n.short} · ` : ''}{governmentOf(n).name} · {ERAS[n.era].short}</span>
-        <span className="display" style={{ fontSize: 15 }}>Turn {state.turn}</span>
+        <span className="display" style={{ fontSize: 15 }}>Turn {state.turn}{ends !== null && <span className={`mono ${ends - now < 30_000 ? 'neg' : 'amber'}`} role="timer" aria-label="Time left this turn"> · {clockText(ends - now)}</span>}</span>
       </div>
     </header>
   );

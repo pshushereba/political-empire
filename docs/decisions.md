@@ -29,10 +29,13 @@
 21. **Two ways to play on one engine.** Alone against computer-run nations, or against other people, with the computer filling empty seats. The rules treat any nation as possibly human; solo is simply a world with one human. Pass-and-play on a shared device exists now; online play is planned in `docs/backend.md`.
 22. **Deals between players need both sides.** Pacts and peace offered to a human become proposals. Computer nations answer immediately.
 
+23. **Pace is a setting of each game.** A time limit for answering the daily question (off to 2 minutes) and a length for each turn (off, minutes, or a day). A question that runs out is answered by the council at a cost, so a short timer raises the stakes without being able to stall the game.
+24. **Everything stays visible between players for now.** Treasuries and armies are public. Revisit if it hurts play.
+25. **Two kinds of multiplayer are wanted:** private games among friends, and open play against people anywhere. See the open question on world size.
+
 ## Open questions
 
-- **How long is a turn online?** A real day, a few minutes, or the host's choice. See the plan in `docs/backend.md`.
-- **Should players see each other's treasuries and armies?** Today everything is visible.
+- **How big is a world, and what is "open" play?** Four nations is a limit of the fixed map, not the rules. Friends games and matched public games need generated maps for more players. A single persistent world for everyone is a different, larger design. See `docs/backend.md`.
 
 - **Should ranked scores be validated on the server?** Today the client reports its own score. An Edge Function could replay the game and compute it. Worth doing before the ranking matters to anyone.
 - **Sign-in methods.** Email link only so far. Google, Apple or passwords are a Supabase setting plus a button.
