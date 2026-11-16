@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   applyAction, armyAt, armySize, canBuild, check, createGame, DEFAULT_FOUNDING, DILEMMA_BY_ID, distance, economy,
   forecast, hexAt, key, MAX_STACK, modifiers, neighbours, ownedHexes, reachable, relation, requirementMet, stance,
-  BUILDING_BY_ID, buildCost, coord, type GameState, type Action,
+  BUILDING_BY_ID, buildCost, buildingYield, coord, governmentFor, placementBonusCount, placementEffect, score, type GameState, type Action,
 } from './index';
 
 const fresh = (over = {}): GameState => createGame({ ...DEFAULT_FOUNDING, seed: 7, ...over });
@@ -58,7 +58,7 @@ describe('the daily question', () => {
     const before = s.nations.veyra;
     const after = act(s, { type: 'decide', choice: 0 }).nations.veyra; // Break the strike
     expect(after.stats.treasury).toBe(before.stats.treasury + 60);
-    expect(after.stats.stability).toBe(before.stats.stability - 8);
+    expect(after.stats.stability).toBe(before.stats.stability - 8 - 5); // the decree, then the change of government
     expect(after.factions.dockworkers).toBe(before.factions.dockworkers - 30);
     expect(after.axes.liberty).toBe(before.axes.liberty - 12);
     expect(after.decisions).toHaveLength(1);
@@ -199,5 +199,88 @@ describe('a long game', () => {
         }
       }
     }
+  });
+});
+
+describe('forms of government', () => {
+  it('follows from the ideology axes', () => {
+    expect(governmentFor({ liberty: 22, market: 50, reform: 50, openness: 50 })).toBe('dictatorship');
+    expect(governmentFor({ liberty: 30, market: 50, reform: 40, openness: 50 })).toBe('aristocracy');
+    expect(governmentFor({ liberty: 30, market: 50, reform: 60, openness: 50 })).toBe('oneparty');
+    expect(governmentFor({ liberty: 50, market: 50, reform: 50, openness: 50 })).toBe('council');
+    expect(governmentFor({ liberty: 78, market: 78, reform: 50, openness: 50 })).toBe('merchant');
+    expect(governmentFor({ liberty: 78, market: 22, reform: 50, openness: 50 })).toBe('commune');
+    expect(governmentFor({ liberty: 78, market: 50, reform: 50, openness: 50 })).toBe('democracy');
+  });
+  it('changes when the daily question moves the nation, at a cost in stability', () => {
+    let s = fresh(); // council republic, liberty 50
+    expect(s.nations.veyra.government).toBe('council');
+    s = act(s, { type: 'decide', choice: 0 }); // break the strike: liberty −12 → 38, reform 50
+    expect(s.nations.veyra.government).toBe('oneparty');
+    expect(s.nations.veyra.stats.stability).toBe(60 - 8 - 5);
+    expect(s.log.some((l) => l.kind === 'government')).toBe(true);
+  });
+  it('gives a dictatorship powers and buildings a democracy cannot have', () => {
+    const tyrant = fresh({ answers: { liberty: 0, market: 1, reform: 1, openness: 1 } });
+    const free = fresh({ answers: { liberty: 2, market: 1, reform: 1, openness: 1 } });
+    expect(check(free, { type: 'power', power: 'conscript' }).ok).toBe(false);
+    const cap = tyrant.nations.veyra.capital;
+    const after = act(tyrant, { type: 'power', power: 'conscript' });
+    expect(armyAt(after, cap)!.units.infantry).toBe(armyAt(tyrant, cap)!.units.infantry + 2);
+    expect(after.nations.veyra.stats.stability).toBe(tyrant.nations.veyra.stats.stability - 6);
+    expect(check(after, { type: 'power', power: 'conscript' }).ok).toBe(false); // cooling down
+    expect(canBuild(tyrant, 'veyra', hexAt(tyrant, cap), BUILDING_BY_ID.police).ok).toBe(true);
+    expect(canBuild(free, 'veyra', hexAt(free, cap), BUILDING_BY_ID.police).ok).toBe(false);
+    expect(canBuild(free, 'veyra', hexAt(free, cap), BUILDING_BY_ID.assembly).ok).toBe(true);
+  });
+  it('lets a dictator go to war freely, and makes a democracy ask first', () => {
+    const tyrant = fresh({ answers: { liberty: 0, market: 1, reform: 1, openness: 1 } });
+    const t2 = act(tyrant, { type: 'diplomacy', nation: 'lune', act: 'war' });
+    expect(t2.nations.veyra.stats.stability).toBe(tyrant.nations.veyra.stats.stability);
+    const free = structuredClone(fresh({ answers: { liberty: 2, market: 1, reform: 1, openness: 1 } }));
+    free.nations.veyra.stats.stability = 45;
+    expect(check(free, { type: 'diplomacy', nation: 'lune', act: 'war' }).ok).toBe(false);
+    free.nations.veyra.stats.stability = 60;
+    expect(applyAction(free, { type: 'diplomacy', nation: 'lune', act: 'war' }).nations.veyra.stats.stability).toBe(52);
+  });
+});
+
+describe('placement', () => {
+  it('pays more for a market street beside a clinic', () => {
+    const s = structuredClone(fresh());
+    const cap = hexAt(s, s.nations.veyra.capital);
+    expect(buildingYield(s, cap, 0).income).toBe(7);
+    const next = hexAt(s, neighbours(cap, s.cols, s.rows)[0]);
+    expect(placementEffect(s, 'veyra', next, BUILDING_BY_ID.clinic).others.income).toBe(2);
+    next.buildings.push({ type: 'clinic', turnsLeft: 0 });
+    expect(buildingYield(s, cap, 0).income).toBe(9);
+    expect(placementBonusCount(s, 'veyra')).toBe(1);
+    // …and a clinic suffers beside a mine.
+    next.buildings.push({ type: 'mine', turnsLeft: 0 });
+    expect(buildingYield(s, next, 0).approval).toBe(2);
+  });
+});
+
+describe('reasons to come back', () => {
+  it('pays out objectives and brings in the next one', () => {
+    let s = structuredClone(fresh());
+    expect(s.objectives.active).toEqual(['first-works', 'standing-army', 'room-to-grow']);
+    const t0 = s.nations.veyra.stats.treasury;
+    s.armies[0].units.infantry = 5;
+    s = act(s, { type: 'recruit', at: s.nations.veyra.capital, unit: 'infantry' });
+    expect(s.objectives.done).toEqual(['standing-army']);
+    expect(s.objectives.active).toHaveLength(3);
+    expect(s.nations.veyra.stats.treasury).toBe(t0 - 60 + 50);
+  });
+  it('rewards returning on consecutive days, once a day', () => {
+    let s = fresh({ day: '2026-11-16' });
+    expect(check(s, { type: 'checkIn', day: '2026-11-16' }).ok).toBe(false);
+    const t0 = s.nations.veyra.stats.treasury;
+    s = act(s, { type: 'checkIn', day: '2026-11-17' });
+    expect(s.checkIn.streak).toBe(2);
+    expect(s.nations.veyra.stats.treasury).toBe(t0 + 60);
+    s = act(s, { type: 'checkIn', day: '2026-11-20' }); // missed days: the run starts again
+    expect(s.checkIn.streak).toBe(1);
+    expect(score(s)).toBeGreaterThan(0);
   });
 });

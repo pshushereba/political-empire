@@ -1,5 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { applyAction, check, createGame, SAVE_VERSION, type Action, type Check, type FoundingChoices, type GameState, type LogEntry } from '../game';
+import { applyAction, check, checkInBonus, createGame, SAVE_VERSION, type Action, type Check, type Effect, type FoundingChoices, type GameState, type LogEntry } from '../game';
+import { recordLegacy } from './legacy';
+
+/** The player's local calendar day, YYYY-MM-DD. */
+function today(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 const SAVE_KEY = 'political-empire.save';
 
@@ -24,6 +31,9 @@ interface Store {
   /** What happened during the turn that just ended. */
   report: { turn: number; entries: LogEntry[] } | null;
   dismissReport: () => void;
+  /** Set when the player comes back on a new day. */
+  welcome: { streak: number; bonus: Effect[] } | null;
+  dismissWelcome: () => void;
 }
 
 const Ctx = createContext<Store | null>(null);
@@ -31,6 +41,7 @@ const Ctx = createContext<Store | null>(null);
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<GameState | null>(load);
   const [report, setReport] = useState<Store['report']>(null);
+  const [welcome, setWelcome] = useState<Store['welcome']>(null);
   const ref = useRef(state);
   ref.current = state;
 
@@ -54,15 +65,33 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return next;
   }, []);
 
+  // The daily run: check in when the game opens and whenever the tab comes back into view.
+  useEffect(() => {
+    const checkIn = () => {
+      const prev = ref.current;
+      if (!prev || prev.status !== 'playing' || document.visibilityState !== 'visible') return;
+      const next = applyAction(prev, { type: 'checkIn', day: today() });
+      if (next === prev) return;
+      ref.current = next;
+      setState(next);
+      if (prev.checkIn.day) setWelcome({ streak: next.checkIn.streak, bonus: checkInBonus(prev, next.checkIn.streak) });
+    };
+    checkIn();
+    document.addEventListener('visibilitychange', checkIn);
+    return () => document.removeEventListener('visibilitychange', checkIn);
+  }, []);
+
   const store = useMemo<Store>(() => ({
     state,
     dispatch,
     can: (action) => (ref.current ? check(ref.current, action) : { ok: false, reason: 'No game' }),
-    newGame: (choices) => { setReport(null); setState(createGame(choices)); },
-    abandon: () => { setReport(null); setState(null); },
+    newGame: (choices) => { setReport(null); setState(createGame({ ...choices, day: today() })); },
+    abandon: () => { if (ref.current) recordLegacy(ref.current); setReport(null); setWelcome(null); setState(null); },
     report,
     dismissReport: () => setReport(null),
-  }), [state, report, dispatch]);
+    welcome,
+    dismissWelcome: () => setWelcome(null),
+  }), [state, report, welcome, dispatch]);
 
   return <Ctx.Provider value={store}>{children}</Ctx.Provider>;
 }

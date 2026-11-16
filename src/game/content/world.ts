@@ -198,6 +198,12 @@ export const BALANCE = {
   hegemonyShare: 0.6,
   unrestBelow: 25,
   claimBase: 8,
+  /** Stability lost when the form of government changes. */
+  upheaval: 5,
+  /** Daily return bonus: per day of the run, up to the cap. */
+  streakTreasury: 30,
+  streakInfluence: 4,
+  streakCap: 5,
   /** Rivals won't declare war on the player before this turn. */
   playerGraceTurns: 20,
   /** Each building a nation owns makes the next one this much dearer. */

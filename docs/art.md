@@ -36,5 +36,5 @@ The id must match the game data: building ids from `src/game/content/buildings.t
 
 - **Illustrated sprites**: swap registry entries for image files, one at a time.
 - **Textured terrain**: `TERRAIN_MARKS` and the hex fill in `HexMap.tsx` are the only places terrain is drawn.
-- **A tilted district view** (designed in `design-canvas/project/BuildModern.dc.html`): the sprites already have a ground line and a shadow for it. It would be a new screen that draws the same `GameState`.
+- **The tilted district view** (`src/ui/screens/DistrictScreen.tsx`) stands each sprite upright on its hex with CSS 3D. It relies on the shared frame: the sprite's ground line is what touches the hex. Ground colours per land type are in `GROUND` at the top of that file.
 - **Animation**: battles and movement are instant today. Each one writes a `LogEntry` with a hex (`at`), which is enough to drive an animation layer over the map.

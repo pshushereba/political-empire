@@ -1,8 +1,10 @@
 import { BUILDING_BY_ID, LOTS_PER_HEX, type BuildingDef } from './content/buildings';
 import { DILEMMA_BY_ID } from './content/dilemmas';
+import { GOVERNMENT_BY_ID, governmentFor, type PowerDef } from './content/governments';
+import { advanceObjectives, completedObjectives } from './objectives';
 import { AXIS_IDS, BALANCE, FACTION_IDS, MAX_STACK, UNIT_BY_ID, UNIT_IDS, type UnitDef } from './content/world';
 import { canDiplomacy, doDiplomacy, shiftRelation } from './diplomacy';
-import { clamp, hasFinished, modifiers, ownedHexes } from './economy';
+import { clamp, governmentOf, hasFinished, modifiers, ownedHexes } from './economy';
 import { distance, hexAt, key, neighbourHexes, same } from './hex';
 import { armyAt, armySize, checkOutcome, executeMove, noUnits, reachable } from './military';
 import { atWar } from './relations';
@@ -24,6 +26,7 @@ export function buildCost(state: GameState, id: NationId, def: BuildingDef): num
 /** Does the land allow this building here, ignoring money? */
 export function fitsHex(state: GameState, id: NationId, hex: Hex, def: BuildingDef): Check {
   if (hex.owner !== id) return no('Not your land');
+  if (def.governments && !def.governments.includes(governmentOf(state.nations[id]).id)) return no(`Only for a ${def.governments.map((g) => GOVERNMENT_BY_ID[g].name.toLowerCase()).join(' or ')}`);
   if (def.era > state.nations[id].era) return no('Unlocks in a later era');
   if (hex.buildings.length >= LOTS_PER_HEX) return no('Both lots are used');
   if (def.needs) {
@@ -151,13 +154,13 @@ export function requirementMet(state: GameState, req: NonNullable<import('./type
 }
 
 /** Treasury swings grow with the nation so they stay meaningful. */
-export function scaledEffects(state: GameState, effects: Effect[]): Effect[] {
-  const era = state.nations[state.playerId].era;
+export function scaledEffects(state: GameState, effects: Effect[], id: NationId = state.playerId): Effect[] {
+  const era = state.nations[id].era;
   return effects.map((e) => (e.target === 'treasury' ? { ...e, delta: Math.round(e.delta * (1 + 0.5 * era)) } : e));
 }
 
-export function applyEffects(state: GameState, effects: Effect[]): void {
-  const n = state.nations[state.playerId];
+export function applyEffects(state: GameState, effects: Effect[], id: NationId = state.playerId): void {
+  const n = state.nations[id];
   for (const e of effects) {
     if (e.target === 'relations') {
       for (const other of state.order) if (other !== n.id && state.nations[other].alive) shiftRelation(state, n.id, other, e.delta);
@@ -176,6 +179,92 @@ export function applyEffects(state: GameState, effects: Effect[]): void {
     } else if (e.target === 'influence') {
       n.stats.influence = Math.max(0, n.stats.influence + e.delta);
     }
+  }
+}
+
+// ---- Government and its powers ---------------------------------------------
+
+/** The government a set of effects would leave the player with. */
+export function governmentAfter(state: GameState, effects: Effect[]): string {
+  const axes = { ...state.nations[state.playerId].axes };
+  for (const e of effects) if ((AXIS_IDS as string[]).includes(e.target)) axes[e.target as AxisId] = clamp(axes[e.target as AxisId] + e.delta, 0, 100);
+  return governmentFor(axes);
+}
+
+/** Ideology moved: see whether the form of government moved with it. */
+export function refreshGovernment(state: GameState, id: NationId): void {
+  const n = state.nations[id];
+  const next = governmentFor(n.axes);
+  if (next === n.government) return;
+  const before = GOVERNMENT_BY_ID[n.government as keyof typeof GOVERNMENT_BY_ID].name;
+  n.government = next;
+  n.stats.stability = clamp(n.stats.stability - BALANCE.upheaval, 0, 100);
+  state.log.push({ turn: state.turn, kind: 'government', important: true,
+    text: `${n.name} is no longer a ${before.toLowerCase()}. It is now a ${GOVERNMENT_BY_ID[next].name.toLowerCase()}: new powers, new limits. The upheaval cost ${BALANCE.upheaval} stability.` });
+}
+
+export function canUsePower(state: GameState, id: NationId, powerId: string): Check {
+  const n = state.nations[id];
+  const power = governmentOf(n).powers.find((p) => p.id === powerId);
+  if (!power) return no('Your form of government cannot do this');
+  const ready = n.powerReady[powerId] ?? 0;
+  if (ready > state.turn) return no(`Ready again on turn ${ready}`);
+  if ((power.cost?.treasury ?? 0) > n.stats.treasury) return no(`Needs ${power.cost!.treasury} treasury`);
+  if ((power.cost?.influence ?? 0) > n.stats.influence) return no(`Needs ${power.cost!.influence} influence`);
+  if (power.special?.kind === 'units') {
+    const army = armyAt(state, n.capital);
+    if (army && armySize(army.units) + power.special.count > MAX_STACK) return no('No room at the capital');
+  }
+  if (power.special?.kind === 'rush' && !ownedHexes(state, id).some((h) => h.buildings.some((b) => b.turnsLeft > 0))) return no('Nothing is under construction');
+  return yes;
+}
+
+export function doPower(state: GameState, id: NationId, power: PowerDef): void {
+  const n = state.nations[id];
+  n.stats.treasury -= power.cost?.treasury ?? 0;
+  n.stats.influence -= power.cost?.influence ?? 0;
+  applyEffects(state, scaledEffects(state, power.effects, id), id);
+  if (power.special?.kind === 'units') {
+    let army = armyAt(state, n.capital);
+    if (!army) {
+      army = { id: state.nextArmyId++, owner: id, ...n.capital, units: noUnits(), moved: 0 };
+      state.armies.push(army);
+    }
+    army.units[power.special.unit] += power.special.count;
+    army.moved = 99;
+  }
+  if (power.special?.kind === 'rush') {
+    for (const h of ownedHexes(state, id)) for (const b of h.buildings) b.turnsLeft = Math.max(0, b.turnsLeft - power.special.turns);
+  }
+  n.powerReady[power.id] = state.turn + power.cooldown;
+  n.tally.powersUsed++;
+  if (id === state.playerId) state.log.push({ turn: state.turn, kind: 'government', text: `You used a power of the state: ${power.name}.` });
+  refreshGovernment(state, id);
+}
+
+// ---- Coming back -----------------------------------------------------------
+
+const dayNumber = (day: string): number => {
+  const [y, m, d] = day.split('-').map(Number);
+  return Math.round(Date.UTC(y, m - 1, d) / 86_400_000);
+};
+
+/** What the player gets for returning on a new calendar day. Grows over a five-day run. */
+export function checkInBonus(state: GameState, streak: number): Effect[] {
+  const tier = Math.min(streak, BALANCE.streakCap);
+  return scaledEffects(state, [{ target: 'treasury', delta: BALANCE.streakTreasury * tier }, { target: 'influence', delta: BALANCE.streakInfluence * tier }]);
+}
+
+function payObjectives(state: GameState): void {
+  // Paying a reward can complete another objective, so repeat until nothing changes.
+  for (let guard = 0; guard < 10; guard++) {
+    const done = completedObjectives(state);
+    if (!done.length) return;
+    for (const d of done) {
+      applyEffects(state, d.reward);
+      state.log.push({ turn: state.turn, kind: 'objective', important: true, text: `Objective complete: ${d.title}.` });
+    }
+    advanceObjectives(state, done);
   }
 }
 
@@ -216,6 +305,10 @@ export function check(state: GameState, action: Action): Check {
     }
     case 'diplomacy':
       return canDiplomacy(state, action.nation, action.act);
+    case 'power':
+      return canUsePower(state, id, action.power);
+    case 'checkIn':
+      return /^\d{4}-\d{2}-\d{2}$/.test(action.day) && (!state.checkIn.day || dayNumber(action.day) > dayNumber(state.checkIn.day)) ? yes : no('Already checked in today');
     case 'endTurn':
       return state.dilemma && state.dilemma.choice === null ? no('Answer today’s question first') : yes;
   }
@@ -264,15 +357,30 @@ export function applyAction(state: GameState, action: Action): GameState {
       applyEffects(s, effects);
       s.dilemma!.choice = action.choice;
       s.nations[id].decisions.push({ turn: s.turn, dilemmaId: dilemma.id, title: dilemma.title, choice: choice.title, effects });
+      refreshGovernment(s, id);
       break;
     }
     case 'diplomacy':
       doDiplomacy(s, action.nation, action.act);
       break;
+    case 'power':
+      doPower(s, id, governmentOf(s.nations[id]).powers.find((p) => p.id === action.power)!);
+      break;
+    case 'checkIn': {
+      const first = !s.checkIn.day;
+      const streak = !first && dayNumber(action.day) - dayNumber(s.checkIn.day) === 1 ? s.checkIn.streak + 1 : 1;
+      s.checkIn = { day: action.day, streak };
+      if (!first) {
+        applyEffects(s, checkInBonus(s, streak));
+        s.log.push({ turn: s.turn, kind: 'info', text: `Welcome back: day ${streak} of your run.` });
+      }
+      break;
+    }
     case 'endTurn':
       endTurn(s, rng);
       break;
   }
+  if (s.status === 'playing') payObjectives(s);
   s.rng = rng.seed;
   return s;
 }

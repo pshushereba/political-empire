@@ -1,8 +1,9 @@
-import { canBuild, canClaim, canRecruit, doBuild, doClaim, doRecruit, fitsHex, buildCost } from './actions';
+import { canBuild, canClaim, canRecruit, canUsePower, doBuild, doClaim, doPower, doRecruit, fitsHex, buildCost } from './actions';
+import { placementEffect } from './yields';
 import { BUILDINGS } from './content/buildings';
 import { BALANCE, TERRAIN, UNITS, UNIT_BY_ID } from './content/world';
 import { declareWar, makePeace } from './diplomacy';
-import { economy, militaryStrength, ownedHexes, unitCount } from './economy';
+import { economy, governmentOf, militaryStrength, ownedHexes, unitCount } from './economy';
 import { distance, hexAt, key, neighbourHexes, same } from './hex';
 import { armyAt, armySize, executeMove, forecast, noUnits, reachable, sharesBorder } from './military';
 import { enemiesOf, relation } from './relations';
@@ -14,6 +15,7 @@ import type { GameState, Hex, HexRef, NationId, UnitCounts } from './types';
 
 export function runAi(state: GameState, id: NationId, rng: Rng): void {
   if (!state.nations[id].alive) return;
+  usePowers(state, id);
   considerWarAndPeace(state, id, rng);
   recruit(state, id, rng);
   build(state, id, rng);
@@ -32,7 +34,7 @@ function considerWarAndPeace(state: GameState, id: NationId, rng: Rng): void {
     }
     return;
   }
-  if (state.turn < 12) return;
+  if (state.turn < 12 || me.stats.stability < governmentOf(me).warNeedsStability) return;
   // Patience runs out as the map fills up.
   const threshold = -50 + me.personality.aggression * 45 + Math.min(20, state.turn / 4);
   const myStrength = militaryStrength(state, id) + 6;
@@ -49,6 +51,21 @@ function considerWarAndPeace(state: GameState, id: NationId, rng: Rng): void {
   if (!targets.length || rng.float() > 0.3) return;
   targets.sort((a, b) => relation(state, id, a).value - relation(state, id, b).value);
   declareWar(state, id, targets[0]);
+}
+
+/** Rivals use their government's powers when the moment calls for one. */
+function usePowers(state: GameState, id: NationId): void {
+  const me = state.nations[id];
+  const atWar = enemiesOf(state, id).length > 0;
+  for (const p of governmentOf(me).powers) {
+    if (!canUsePower(state, id, p.id).ok) continue;
+    const gives = (t: string) => p.effects.some((e) => e.target === t && e.delta > 0);
+    const want = (p.special?.kind === 'units' && atWar && me.stats.stability > 40)
+      || p.special?.kind === 'rush'
+      || (gives('stability') && me.stats.stability < 40)
+      || (gives('treasury') && me.stats.treasury < 80 && me.stats.stability > 45);
+    if (want) doPower(state, id, p);
+  }
 }
 
 function recruit(state: GameState, id: NationId, rng: Rng): void {
@@ -96,8 +113,10 @@ function build(state: GameState, id: NationId, rng: Rng): void {
         if (!fitsHex(state, id, hex, def).ok) continue;
         const border = neighbourHexes(state, hex).some((n) => n.owner !== id && n.terrain !== 'sea');
         const wSecurity = border && atWar ? 1.2 : border ? 0.25 : 0;
-        const value = (def.income ?? 0) + (def.supply ?? 0) * wSupply + (def.approval ?? 0) * wApproval
-          + (def.security ?? 0) * wSecurity + (def.influence ?? 0) * 1.5 + (def.recruits && border ? 2 : 0);
+        // Judge the site, not just the building: what it yields here and what it does to its neighbours.
+        const e = placementEffect(state, id, hex, def);
+        const value = e.own.income + e.others.income + (e.own.supply + e.others.supply) * wSupply + (e.own.approval + e.others.approval) * wApproval
+          + (e.own.security + e.others.security) * wSecurity + e.own.influence * 1.5 + (def.recruits && border ? 2 : 0);
         const score = (value / def.cost) * (1 - 0.03 * distance(hex, me.capital)) * rng.range(0.8, 1.2);
         if (!best || score > best.score) best = { hex, def, score };
       }

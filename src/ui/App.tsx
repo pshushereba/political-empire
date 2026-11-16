@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
-import { economy, ERAS, formatPopulation } from '../game';
-import { Logo, signed } from './components/common';
+import { economy, ERAS, formatPopulation, governmentOf, score } from '../game';
+import { EffectChips, Logo, signed } from './components/common';
+import { DistrictScreen } from './screens/DistrictScreen';
 import { CouncilScreen } from './screens/CouncilScreen';
 import { DiplomacyScreen } from './screens/DiplomacyScreen';
 import { Founding } from './screens/Founding';
@@ -10,6 +11,7 @@ import { useGame, useRoute, useStore } from './store';
 
 const NAV = [
   { path: '/', label: 'Map' },
+  { path: '/district', label: 'District' },
   { path: '/nation', label: 'Nation' },
   { path: '/council', label: 'Council' },
   { path: '/diplomacy', label: 'Diplomacy' },
@@ -41,7 +43,7 @@ function Header({ route }: { route: string }) {
         <div><dt className="eyebrow">Population</dt><dd>{formatPopulation(n.stats.population)}</dd></div>
       </dl>
       <div className="era">
-        <span className="eyebrow">{ERAS[n.era].short}</span>
+        <span className="eyebrow">{governmentOf(n).name} · {ERAS[n.era].short}</span>
         <span className="display" style={{ fontSize: 15 }}>Turn {state.turn}</span>
       </div>
     </header>
@@ -63,11 +65,21 @@ function Dialog({ title, eyebrow, children, onClose, closeLabel }: { title: stri
 }
 
 function Overlays() {
-  const { state, report, dismissReport, abandon } = useGame();
+  const { state, report, dismissReport, abandon, welcome, dismissWelcome } = useGame();
   if (state.status !== 'playing') {
     return (
       <Dialog title={state.status === 'won' ? 'Victory' : 'Your nation has fallen'} eyebrow={`Turn ${state.turn}`} onClose={abandon} closeLabel="Found a new nation">
         <p className="body-large">{state.outcome}</p>
+        <p className="muted">Final score {score(state).toLocaleString()} as a {governmentOf(state.nations[state.playerId]).name.toLowerCase()}. It goes into the hall of nations. Could a different kind of state do better?</p>
+      </Dialog>
+    );
+  }
+  if (welcome) {
+    return (
+      <Dialog title={welcome.streak > 1 ? `Day ${welcome.streak} of your run` : 'Welcome back'} eyebrow="The nation kept going without you" onClose={dismissWelcome} closeLabel="Back to work">
+        <p className="body-large">{welcome.streak > 1 ? 'You have returned on consecutive days, and the council has put a little aside for you.' : 'The council has put a little aside for your return.'}</p>
+        <EffectChips effects={welcome.bonus} />
+        <p className="small muted">Come back tomorrow and the bonus grows, up to day 5. Miss a day and the run starts again.</p>
       </Dialog>
     );
   }
@@ -97,6 +109,7 @@ export function App() {
       {section === 'nation' ? <NationScreen />
         : section === 'council' ? <CouncilScreen key={state.turn} />
         : section === 'diplomacy' ? <DiplomacyScreen nationId={arg} />
+        : section === 'district' ? <DistrictScreen at={arg} />
         : <MapScreen />}
       <Overlays />
     </div>

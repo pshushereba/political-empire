@@ -19,12 +19,17 @@
 14. **Rivals play by the player's rules.** Same costs, same checks, same battles. They leave the player alone for the first 20 turns.
 15. **Graphics go through a sprite registry.** All art is placeholder vector drawing in `src/art/`, replaceable one entry at a time. See `docs/art.md`.
 
+16. **"Daily" means an in-game day.** One question per turn, as many turns a sitting as the player likes. Nothing waits on the real calendar.
+17. **Ideology decides the form of government, and government decides what the state can do.** Seven forms, each with its own powers, limits on war, and buildings. Crossing a line costs stability, so drifting back and forth is punished.
+18. **The district close-up is back**, as a view of any owned hex and its six neighbours, flat or tilted. It exists for planning: buildings gain or lose from their neighbours, and the close-up shows the effect of each site before you build. Quick building from the map panel stays.
+19. **Return hooks never gate play.** Objectives give short-term goals, a daily run pays a small bonus for coming back on consecutive days, and a hall of nations keeps scores between games.
+
 ## Open questions
 
-- **Is "daily" meant literally?** A turn is one in-game day and you can play as many as you like in a sitting. If the game should allow only one question per real day, that is a small change to when a new question is drawn.
+- **Stronger return hooks need a server.** Notifications, leaderboards shared between players, limited-time events and anything asynchronous ("your rival moved while you were away") are not possible in a browser-only game.
 - **Balance.** Numbers were tuned by simulation, not by people playing. Expect to adjust `BALANCE`, unit stats and building yields.
 - **Single-player or multiplayer?** The build is single-player against AI rivals. Is multiplayer (shared world, turns, accounts) planned?
-- **Player-made districts** and the tilted district view from the designs.
+- **Player-made districts.** The close-up shows a hex and its neighbours; named, player-drawn districts are still open.
 - **Map.** The world is fixed at 14 × 10 with the same terrain every game. Random or larger maps? Zoom levels?
 - **Rival politics.** Rivals have fixed ideologies and do not answer dilemmas. "Their council is debating" is not built.
 - **Alliances, ceding land, tribute.** Diplomacy stops at pacts, war and peace.

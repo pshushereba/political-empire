@@ -88,6 +88,11 @@ export interface Nation {
   factions: Record<FactionId, number>;
   decisions: DecisionRecord[];
   personality: Personality;
+  /** Form of government, derived from the axes. Stored so a change can be noticed. */
+  government: string;
+  /** Power id → first turn it can be used again. */
+  powerReady: Record<string, number>;
+  tally: { battlesWon: number; capitalsTaken: number; powersUsed: number };
 }
 
 export interface Relation {
@@ -144,7 +149,7 @@ export interface Dilemma {
   when?: 'war' | 'peace';
 }
 
-export type LogKind = 'battle' | 'war' | 'peace' | 'build' | 'economy' | 'diplomacy' | 'unrest' | 'era' | 'info';
+export type LogKind = 'objective' | 'government' | 'battle' | 'war' | 'peace' | 'build' | 'economy' | 'diplomacy' | 'unrest' | 'era' | 'info';
 
 export interface LogEntry {
   turn: number;
@@ -176,6 +181,10 @@ export interface GameState {
   dilemma: { id: string; choice: number | null } | null;
   /** Dilemma ids not yet drawn in this cycle. */
   deck: string[];
+  /** The player's current and completed objectives. */
+  objectives: { active: string[]; done: string[] };
+  /** Real-world visits: the last calendar day played and the run of consecutive days. */
+  checkIn: { day: string; streak: number };
   log: LogEntry[];
   status: 'playing' | 'won' | 'lost';
   outcome: string;
@@ -189,6 +198,8 @@ export interface FoundingChoices {
   startingLand: StartingLand;
   flag: Flag;
   seed?: number;
+  /** Today's date, YYYY-MM-DD, for the daily streak. */
+  day?: string;
 }
 
 export type Action =
@@ -201,6 +212,8 @@ export type Action =
   | { type: 'moveEnvoy'; to: HexRef }
   | { type: 'decide'; choice: number }
   | { type: 'diplomacy'; nation: NationId; act: DiplomacyAct }
+  | { type: 'power'; power: string }
+  | { type: 'checkIn'; day: string }
   | { type: 'endTurn' };
 
 export type DiplomacyAct = 'trade' | 'embassy' | 'gift' | 'pact' | 'denounce' | 'war' | 'peace';

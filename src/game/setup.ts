@@ -1,4 +1,6 @@
 import { DILEMMAS, FIRST_DILEMMA } from './content/dilemmas';
+import { governmentFor } from './content/governments';
+import { ACTIVE_OBJECTIVES, OBJECTIVES } from './content/objectives';
 import { BALANCE, COLS, FOUNDING_VALUES, PLAYER_START, RIVALS, ROWS, START_RADIUS, isSea } from './content/world';
 import { baseline } from './diplomacy';
 import { distance, neighbours } from './hex';
@@ -7,7 +9,7 @@ import { newRelation, pairKey } from './relations';
 import { Rng } from './rng';
 import type { AxisId, FoundingChoices, GameState, Hex, Nation, Terrain } from './types';
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 const LAND: Terrain[] = ['plains', 'forest', 'hills', 'highlands', 'farmland'];
 const hash = (c: number, r: number): number => ((c * 73856093) ^ (r * 19349663)) >>> 0;
@@ -44,6 +46,9 @@ function baseNation(partial: Pick<Nation, 'id' | 'name' | 'short' | 'motto' | 'd
     axesAtFounding: { ...partial.axes },
     factions: { merchants: 55, settlers: 55, clergy: 50, dockworkers: 45 },
     decisions: [],
+    government: governmentFor(partial.axes),
+    powerReady: {},
+    tally: { battlesWon: 0, capitalsTaken: 0, powersUsed: 0 },
   };
 }
 
@@ -101,6 +106,8 @@ export function createGame(choices: FoundingChoices): GameState {
     envoy: { ...player.capital, dest: null, arrivesTurn: 0 },
     dilemma: { id: FIRST_DILEMMA, choice: null },
     deck: rng.shuffle(DILEMMAS.map((d) => d.id).filter((id) => id !== FIRST_DILEMMA)),
+    objectives: { active: OBJECTIVES.slice(0, ACTIVE_OBJECTIVES).map((o) => o.id), done: [] },
+    checkIn: { day: choices.day ?? '', streak: 1 },
     log: [], status: 'playing', outcome: '',
   };
 

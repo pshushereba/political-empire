@@ -18,9 +18,9 @@ npm run build      # typecheck, then production build to dist/
 | Path | What it is |
 | --- | --- |
 | `src/game/` | The rules. Pure, UI-free, unit-tested. `applyAction(state, action)` is the only way state changes. |
-| `src/game/content/` | Data: buildings, units, terrain, eras, rival nations, the daily questions, and every balance number (`BALANCE`). |
+| `src/game/content/` | Data: buildings, units, terrain, eras, rival nations, forms of government and their powers, objectives, the daily questions, and every balance number (`BALANCE`). |
 | `src/art/` | The sprite registry. All drawing data lives here. See `docs/art.md`. |
-| `src/ui/` | React screens: Founding, Map, Nation, Council, Diplomacy. They read state and dispatch actions. |
+| `src/ui/` | React screens: Founding, Map, District (the tilted close-up), Nation, Council, Diplomacy. They read state and dispatch actions. `legacy.ts` keeps scores between games. |
 | `docs/game-model.md` | The rules in prose, with the numbers. Keep it in step with the code. |
 | `docs/art.md` | How to replace or add graphics. |
 | `docs/decisions.md` | Decisions made and open questions. Read before changing scope. |
@@ -36,7 +36,8 @@ Live design canvas (the prototypes, rendered): https://claude.ai/artifact/H8UMbB
 - Inside `src/game/`, `applyAction` clones the state once and the helpers it calls mutate that draft. Randomness comes from the seeded RNG stored in the state, so the same actions always give the same game.
 - Rival nations go through the same checks and costs as the player. Don't give the AI private rules.
 - Hex coordinates follow `docs/game-model.md` (pointy-top, odd-r offset storage, cube distance).
-- Dilemmas, buildings, units and nations are data, not code paths. Balance numbers go in `BALANCE`, not inline.
+- The rules never read the clock. Real-world time (the daily run) arrives as data in an action.
+- Dilemmas, buildings, units, governments, powers, objectives and nations are data, not code paths. Balance numbers go in `BALANCE`, not inline.
 - Graphics go through the sprite registry (`<Sprite id>`). No drawing data in screens.
 - Every interactive element is a real `<button>`, `<a>` or `<input>` with a label; map hexes are SVG `role="button"` elements with full labels and arrow-key movement. Text contrast must reach 4.5:1 on its background.
 - Use the modern building set only. The medieval set was explored and rejected (see `docs/decisions.md`).

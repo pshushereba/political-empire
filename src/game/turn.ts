@@ -1,9 +1,9 @@
 import { runAi } from './ai';
 import { BUILDING_BY_ID } from './content/buildings';
 import { DILEMMAS, DILEMMA_BY_ID } from './content/dilemmas';
-import { BALANCE, ERAS, UNIT_BY_ID, UNIT_IDS } from './content/world';
+import { ERAS, UNIT_BY_ID, UNIT_IDS } from './content/world';
 import { baseline } from './diplomacy';
-import { clamp, economy, eraFor, ownedHexes } from './economy';
+import { clamp, economy, eraFor, governmentOf, ownedHexes } from './economy';
 import { coord, hexAt, neighbourHexes } from './hex';
 import { armyAt, armySize, checkOutcome, transferHex } from './military';
 import { enemiesOf, pairKey } from './relations';
@@ -59,7 +59,7 @@ function runNation(state: GameState, id: NationId, rng: Rng): void {
   }
 
   // Unrest: an unstable nation loses land at its edges.
-  if (n.stats.stability < BALANCE.unrestBelow && rng.float() < 0.5) {
+  if (n.stats.stability < governmentOf(n).unrestBelow && rng.float() < 0.5) {
     const edge = ownedHexes(state, id).filter((h) => h.capitalOf !== id && !armyAt(state, h) && neighbourHexes(state, h).some((x) => x.owner !== id && x.terrain !== 'sea'));
     if (edge.length) {
       const lost = rng.pick(edge);

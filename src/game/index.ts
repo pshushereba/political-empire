@@ -9,3 +9,8 @@ export * from './setup';
 export * from './content/buildings';
 export * from './content/dilemmas';
 export * from './content/world';
+export * from './yields';
+export * from './objectives';
+export * from './score';
+export * from './content/governments';
+export * from './content/objectives';

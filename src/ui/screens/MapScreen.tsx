@@ -1,13 +1,13 @@
 import { useMemo, useState } from 'react';
 import { Sprite } from '../../art/Sprite';
 import {
-  armyAt, armySize, armySpeed, BUILDING_BY_ID, BUILDINGS, buildCost, CATEGORIES, check as checkAction, claimCost, coord, defencePower, describeUnits,
+  activeObjectives, armyAt, armySize, armySpeed, BUILDING_BY_ID, BUILDINGS, buildCost, CATEGORIES, check as checkAction, claimCost, coord, defencePower, describeUnits,
   DILEMMA_BY_ID, envoyTravelTurns, forecast, hexAt, isCutOff, isRecruitSite, key, LOTS_PER_HEX, MAX_STACK, movingUnits, reachable,
   recruitCost, relation, same, stance, TERRAIN, UNIT_BY_ID, UNIT_IDS, UNITS,
   type Army, type BuildingCategory, type GameState, type Hex, type HexRef, type MoveOption, type UnitCounts,
 } from '../../game';
 import { HexMap } from '../components/HexMap';
-import { Yield } from '../components/common';
+import { EffectChips, Yield } from '../components/common';
 import { useGame } from '../store';
 
 export function MapScreen() {
@@ -59,6 +59,7 @@ export function MapScreen() {
         {myArmy && options.size > 0 && !order && (
           <p className="map-hint" role="status">Choose a highlighted hex to give this army its orders</p>
         )}
+        <Objectives state={state} />
         <div className="legend">
           <span className="eyebrow">Nations</span>
           {state.order.map((id) => {
@@ -129,6 +130,29 @@ export function MapScreen() {
         </div>
       </aside>
     </div>
+  );
+}
+
+/** Collapsed to one line so it doesn't cover the map; opens to show all three. */
+function Objectives({ state }: { state: GameState }) {
+  const list = activeObjectives(state);
+  const nearest = [...list].sort((x, y) => y.progress - x.progress)[0];
+  return (
+    <details className="objectives">
+      <summary>
+        <span className="eyebrow">Objectives · {state.objectives.done.length} done</span>
+        <span>{nearest ? `${nearest.def.title} · ${Math.round(nearest.progress * 100)}%` : 'All complete'}</span>
+      </summary>
+      <ul className="col gap-8">
+        {list.map((o) => (
+          <li key={o.def.id}>
+            <div className="row spread gap-8"><strong>{o.def.title}</strong><EffectChips effects={o.def.reward} /></div>
+            <span className="muted">{o.def.desc}</span>
+            <div className="bar" role="progressbar" aria-valuenow={Math.round(o.progress * 100)} aria-valuemin={0} aria-valuemax={100} aria-label={`${o.def.title} progress`}><span style={{ width: `${o.progress * 100}%` }} /></div>
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
 
@@ -280,6 +304,8 @@ function LotsCard({ hex, onBuild }: { hex: Hex; onBuild: () => void }) {
         ))}
       </ul>
       {free && <button type="button" className="btn light block" onClick={onBuild}>Build here…</button>}
+      <a className="btn block" href={`#/district/${hex.c},${hex.r}`}>Open district close-up</a>
+      <p className="small muted">Buildings earn more beside the right neighbours. The close-up shows where.</p>
     </section>
   );
 }

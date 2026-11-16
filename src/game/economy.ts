@@ -1,4 +1,6 @@
 import { BUILDING_BY_ID } from './content/buildings';
+import { GOVERNMENT_BY_ID, type GovernmentDef, type GovernmentId } from './content/governments';
+import { buildingYield } from './yields';
 import { BALANCE, ERAS, FACTION_IDS, TERRAIN, UNIT_BY_ID, UNIT_IDS } from './content/world';
 import { pairKey } from './relations';
 import type { GameState, Hex, Nation, NationId } from './types';
@@ -23,7 +25,11 @@ export interface Modifiers {
   stability: number;
 }
 
-/** How a nation's ideology and starting land change the rules for it. */
+export function governmentOf(n: Nation): GovernmentDef {
+  return GOVERNMENT_BY_ID[n.government as GovernmentId];
+}
+
+/** How a nation's ideology, government and starting land change the rules for it. */
 export function modifiers(n: Nation): Modifiers {
   const L = lean(n.axes.liberty);
   const M = lean(n.axes.market);
@@ -44,6 +50,10 @@ export function modifiers(n: Nation): Modifiers {
   if (n.startingLand === 'coast') m.incomeMult *= 1.1;
   if (n.startingLand === 'river') m.supplyFlat += 4;
   if (n.startingLand === 'highlands') { m.defenceMult *= 1.2; m.supplyFlat -= 2; }
+  for (const [k, v] of Object.entries(governmentOf(n).mods) as [keyof Modifiers, number][]) {
+    if (k.endsWith('Mult')) m[k] *= v;
+    else m[k] += v;
+  }
   return m;
 }
 
@@ -107,16 +117,16 @@ export function economy(state: GameState, id: NationId): Economy {
     const t = TERRAIN[h.terrain];
     land += t.income;
     supply += t.supply;
-    for (const b of h.buildings) {
-      if (b.turnsLeft > 0) continue;
-      const d = BUILDING_BY_ID[b.type];
-      if (d.category === 'commerce') commerce += d.income ?? 0;
-      else otherIncome += d.income ?? 0;
-      supply += d.supply ?? 0;
-      approval += d.approval ?? 0;
-      security += d.security ?? 0;
-      influence += d.influence ?? 0;
-    }
+    h.buildings.forEach((b, i) => {
+      if (b.turnsLeft > 0) return;
+      const y = buildingYield(state, h, i);
+      if (BUILDING_BY_ID[b.type].category === 'commerce') commerce += y.income;
+      else otherIncome += y.income;
+      supply += y.supply;
+      approval += y.approval;
+      security += y.security;
+      influence += y.influence;
+    });
   }
 
   let trade = 0;
@@ -156,7 +166,7 @@ export function economy(state: GameState, id: NationId): Economy {
       - wars * 4 - Math.max(0, hexes.length - 20) * 0.5 - Math.min(20, Math.max(0, -supplyNet) * 2),
     0, 100,
   );
-  const growthPct = clamp(1 + 0.3 * supplyNet + (n.factions.settlers - 50) / 50 - (n.stats.stability < BALANCE.unrestBelow ? 1 : 0), -6, 5);
+  const growthPct = clamp(1 + 0.3 * supplyNet + (n.factions.settlers - 50) / 50 - (n.stats.stability < governmentOf(n).unrestBelow ? 1 : 0), -6, 5);
 
   return {
     hexes: hexes.length,

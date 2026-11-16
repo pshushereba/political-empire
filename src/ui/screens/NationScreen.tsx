@@ -1,5 +1,5 @@
 import {
-  AXES, BALANCE, coord, economy, ERAS, eraProgress, FACTIONS, formatPopulation, landCount, lean, modifiers, unitCount,
+  AXES, BALANCE, coord, economy, ERAS, eraProgress, FACTIONS, formatPopulation, GOVERNMENTS, governmentOf, landCount, lean, modifiers, scaledEffects, unitCount,
   type AxisDef, type Nation,
 } from '../../game';
 import { EffectChips, Flag, signed } from '../components/common';
@@ -34,7 +34,7 @@ function doctrine(n: Nation): string[] {
 }
 
 export function NationScreen() {
-  const { state, abandon } = useGame();
+  const { state, abandon, dispatch, can } = useGame();
   const n = state.nations[state.playerId];
   const eco = economy(state, n.id);
   const land = landCount(state);
@@ -42,6 +42,7 @@ export function NationScreen() {
   const progress = eraProgress(n, eco.hexes);
   const next = ERAS[n.era + 1];
   const effects = doctrine(n);
+  const gov = governmentOf(n);
 
   return (
     <div className="page">
@@ -50,7 +51,7 @@ export function NationScreen() {
           <Flag flag={n.flag} width={96} />
           <div className="col gap-4 grow">
             <h1 className="h-page">{n.name}</h1>
-            <p className="muted">“{n.motto}” · Founded turn {n.foundedTurn} · Capital at {coord(n.capital)}</p>
+            <p className="muted">{gov.name} · “{n.motto}” · Founded turn {n.foundedTurn} · Capital at {coord(n.capital)}</p>
           </div>
         </header>
 
@@ -60,6 +61,47 @@ export function NationScreen() {
           <div className="card col gap-4"><dt className="eyebrow">Stability</dt><dd className="mono" style={{ fontSize: 22 }}>{n.stats.stability}%</dd><dd className={`small ${eco.stabilityTarget >= n.stats.stability ? 'pos' : 'neg'}`}>Heading toward {eco.stabilityTarget}%</dd></div>
           <div className="card col gap-4"><dt className="eyebrow">Treasury</dt><dd className="mono" style={{ fontSize: 22 }}>{Math.round(n.stats.treasury).toLocaleString()}</dd><dd className={`small ${eco.net >= 0 ? 'pos' : 'neg'}`}>{signed(eco.net)} per turn</dd></div>
         </dl>
+
+        <section className="col gap-16">
+          <h2 className="h-section">Form of government</h2>
+          <div className="grid-2" style={{ alignItems: 'start' }}>
+            <div className="card col" style={{ borderColor: 'var(--accent)', background: 'var(--surface-amber)' }}>
+              <span className="eyebrow amber">You are a</span>
+              <strong className="h-panel">{gov.name}</strong>
+              <p>{gov.blurb}</p>
+              <ul className="col gap-4 small">{gov.notes.map((t) => <li key={t}>· {t}</li>)}</ul>
+              <p className="small muted">Your answers to the daily question decide this. A change of government costs {BALANCE.upheaval} stability and swaps your powers.</p>
+            </div>
+            <div className="col">
+              <h3 className="eyebrow">Powers of the state</h3>
+              {gov.powers.map((p) => {
+                const ok = can({ type: 'power', power: p.id });
+                const cost = [p.cost?.treasury && `${p.cost.treasury} treasury`, p.cost?.influence && `${p.cost.influence} influence`].filter(Boolean).join(', ');
+                return (
+                  <div key={p.id} className="card col gap-8">
+                    <div className="row spread"><strong>{p.name}</strong><span className="chip">{cost || 'Free'} · every {p.cooldown} turns</span></div>
+                    <span className="small muted">{p.desc}</span>
+                    <EffectChips effects={scaledEffects(state, p.effects)} />
+                    <button type="button" className="btn small" disabled={!ok.ok} onClick={() => dispatch({ type: 'power', power: p.id })}>{ok.ok ? p.name : ok.reason}</button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <details className="card">
+            <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Other forms of government, and how to reach them</summary>
+            <ul className="grid-3" style={{ marginTop: 16 }}>
+              {GOVERNMENTS.filter((g) => g.id !== gov.id).map((g) => (
+                <li key={g.id} className="col gap-4">
+                  <strong>{g.name}</strong>
+                  <span className="small amber">{g.path}</span>
+                  <span className="small muted">{g.blurb}</span>
+                  <span className="small">Powers: {g.powers.map((p) => p.name).join(' · ')}</span>
+                </li>
+              ))}
+            </ul>
+          </details>
+        </section>
 
         <section className="col gap-16">
           <h2 className="h-section">The books</h2>
@@ -95,7 +137,7 @@ export function NationScreen() {
                 <tr><td>Units under arms</td><td>{unitCount(state, n.id)}</td></tr>
                 <tr className="total"><td>Wars</td><td className={eco.wars ? 'neg' : ''}>{eco.wars}</td></tr>
               </tbody></table>
-              {n.stats.stability < BALANCE.unrestBelow && <p className="small neg" style={{ marginTop: 8 }}>Unrest: below {BALANCE.unrestBelow}% stability, border hexes may break away.</p>}
+              {n.stats.stability < gov.unrestBelow && <p className="small neg" style={{ marginTop: 8 }}>Unrest: below {gov.unrestBelow}% stability, border hexes may break away.</p>}
             </div>
           </div>
         </section>

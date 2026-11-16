@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { AXES, DEFAULT_FOUNDING, FLAG_PAIRS, FOUNDING_QUESTIONS, FOUNDING_VALUES, STARTING_LANDS, type FoundingChoices } from '../../game';
+import { AXES, DEFAULT_FOUNDING, FLAG_PAIRS, FOUNDING_QUESTIONS, FOUNDING_VALUES, GOVERNMENT_BY_ID, GOVERNMENTS, governmentFor, STARTING_LANDS, type FoundingChoices } from '../../game';
+import { loadLegacy } from '../legacy';
 import { Flag, Logo } from '../components/common';
 import { go, useStore } from '../store';
 
@@ -13,6 +14,12 @@ export function Founding() {
   const { newGame } = useStore();
   const [c, setC] = useState<FoundingChoices>(DEFAULT_FOUNDING);
   const land = STARTING_LANDS.find((l) => l.id === c.startingLand)!;
+  const gov = GOVERNMENT_BY_ID[governmentFor({
+    liberty: FOUNDING_VALUES[c.answers.liberty], market: FOUNDING_VALUES[c.answers.market],
+    reform: FOUNDING_VALUES[c.answers.reform], openness: FOUNDING_VALUES[c.answers.openness],
+  })];
+  const [hall] = useState(loadLegacy);
+  const wonAs = new Set(hall.filter((r) => r.outcome === 'won').map((r) => r.government));
 
   return (
     <form className="founding" onSubmit={(e) => { e.preventDefault(); newGame(c); go('/'); }}>
@@ -80,6 +87,12 @@ export function Founding() {
           <h2 className="h-panel">{c.name.trim() || '[NATION NAME]'}</h2>
           <p className="muted">“{c.motto.trim() || 'By our own hands'}” · {land.name}</p>
         </div>
+        <div className="card col gap-4" aria-live="polite" style={{ background: 'var(--surface-amber)', borderColor: 'var(--accent)' }}>
+          <span className="eyebrow amber">You will begin as a</span>
+          <strong className="display" style={{ fontSize: 18 }}>{gov.name}</strong>
+          <span className="small">{gov.blurb}</span>
+          <span className="small muted">Powers: {gov.powers.map((p) => p.name).join(' · ')}</span>
+        </div>
         <div className="col gap-8">
           {AXES.map((a) => (
             <div key={a.id}>
@@ -90,6 +103,17 @@ export function Founding() {
             </div>
           ))}
         </div>
+        {hall.length > 0 && (
+          <section className="col gap-8" aria-label="Hall of nations">
+            <span className="eyebrow">Hall of nations · best {Math.max(...hall.map((r) => r.score)).toLocaleString()}</span>
+            <ol className="col gap-4 small">
+              {hall.slice(0, 4).map((r, i) => (
+                <li key={i} className="row spread"><span>{r.name} <span className="muted">· {GOVERNMENT_BY_ID[r.government].name} · {r.outcome} on turn {r.turns}</span></span><span className="mono">{r.score.toLocaleString()}</span></li>
+              ))}
+            </ol>
+            <span className="small muted">Won as {wonAs.size} of {GOVERNMENTS.length} forms of government{wonAs.size < GOVERNMENTS.length ? `. Not yet: ${GOVERNMENTS.filter((g) => !wonAs.has(g.id)).map((g) => g.name).join(', ')}.` : '.'}</span>
+          </section>
+        )}
         <div style={{ flex: 1 }} />
         <button type="submit" className="btn primary block">Found the nation</button>
       </aside>

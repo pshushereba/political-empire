@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { DILEMMA_BY_ID, FACTIONS, requirementMet, scaledEffects } from '../../game';
+import { DILEMMA_BY_ID, FACTIONS, GOVERNMENT_BY_ID, governmentAfter, requirementMet, scaledEffects, type GovernmentId } from '../../game';
 import { EffectChips } from '../components/common';
 import { useGame } from '../store';
 
@@ -76,6 +76,9 @@ export function CouncilScreen() {
                     <strong>{c.title}</strong>
                     <span className="small muted">{c.desc}</span>
                     {c.requires && <span className={`small ${locked ? 'neg' : 'pos'}`}>{locked ? 'Locked' : 'Unlocked'} · {c.requires.label}</span>}
+                    {governmentAfter(state, c.effects) !== player.government && (
+                      <span className="small amber">Changes your government: you would become a {GOVERNMENT_BY_ID[governmentAfter(state, c.effects) as GovernmentId].name.toLowerCase()}</span>
+                    )}
                   </span>
                 </label>
               );
@@ -87,7 +90,7 @@ export function CouncilScreen() {
           </div>
           <button type="submit" className="btn primary block" disabled={picked === null}>Issue decree</button>
           <a className="btn block" href="#/">Decide later</a>
-          <p className="small muted">The turn cannot end until the council has its answer.</p>
+          <p className="small muted">You are a {GOVERNMENT_BY_ID[player.government as GovernmentId].name.toLowerCase()}. Answers that move Authority and Liberty far enough change that, and with it what your state can do. The turn cannot end until the council has its answer.</p>
         </form>
       </div>
     </div>

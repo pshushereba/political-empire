@@ -1,6 +1,7 @@
 import { BUILDING_BY_ID } from './content/buildings';
 import { BALANCE, MAX_STACK, TERRAIN, UNIT_BY_ID, UNIT_IDS } from './content/world';
 import { modifiers } from './economy';
+import { buildingYield } from './yields';
 import { coord, distance, hexAt, key, neighbourHexes, neighbours } from './hex';
 import { atWar, pairKey } from './relations';
 import type { Rng } from './rng';
@@ -84,9 +85,9 @@ export function attackPower(units: UnitCounts, target: Hex): number {
   return units.infantry * UNIT_BY_ID.infantry.attack + units.armour * UNIT_BY_ID.armour.attack * t.armour + units.artillery * UNIT_BY_ID.artillery.attack;
 }
 
-export function hexSecurity(hex: Hex): number {
+export function hexSecurity(state: GameState, hex: Hex): number {
   let s = 0;
-  for (const b of hex.buildings) if (b.turnsLeft === 0) s += BUILDING_BY_ID[b.type].security ?? 0;
+  hex.buildings.forEach((b, i) => { if (b.turnsLeft === 0) s += buildingYield(state, hex, i).security; });
   return s;
 }
 
@@ -99,7 +100,7 @@ export function defencePower(state: GameState, target: Hex, attackerHasArtillery
   if (army) for (const u of UNIT_IDS) men += army.units[u] * UNIT_BY_ID[u].defence;
   let mult = TERRAIN[target.terrain].defence * (isCapital ? BALANCE.capitalDefence : 1) * modifiers(defender).defenceMult;
   if (isCutOff(state, target)) mult *= BALANCE.cutOffDefence;
-  return men * mult + hexSecurity(target) * (attackerHasArtillery ? 0.5 : 1);
+  return men * mult + hexSecurity(state, target) * (attackerHasArtillery ? 0.5 : 1);
 }
 
 /** A hex with no friendly land beside it is cut off, and defends badly. */
@@ -146,6 +147,7 @@ export function collapse(state: GameState, loserId: NationId, winnerId: NationId
   const loser = state.nations[loserId];
   const winner = state.nations[winnerId];
   loser.alive = false;
+  winner.tally.capitalsTaken++;
   state.armies = state.armies.filter((a) => a.owner !== loserId);
   for (const h of state.hexes) {
     if (h.owner !== loserId) continue;
@@ -282,6 +284,7 @@ export function executeMove(state: GameState, army: Army, to: HexRef, moving: Un
     mover.moved = speed;
     placeArmy(state, mover);
     defender.stats.stability = Math.max(0, defender.stats.stability - 2);
+    me.tally.battlesWon++;
     log(state, { kind: 'battle', important: involvesPlayer, at: to,
       text: `${me.short} took ${where}. Losses: ${me.short} ${lossA}, ${defender.short} ${lossD}.` });
     if (wasCapital) collapse(state, defenderId, army.owner);

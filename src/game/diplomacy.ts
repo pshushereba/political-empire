@@ -1,5 +1,5 @@
 import { AXIS_IDS, BALANCE } from './content/world';
-import { clamp, landCount, militaryStrength, ownedHexes } from './economy';
+import { clamp, governmentOf, landCount, militaryStrength, ownedHexes } from './economy';
 import { hexAt } from './hex';
 import { sharesBorder } from './military';
 import { pairKey, relation } from './relations';
@@ -21,7 +21,7 @@ export const DIPLOMACY_ACTS: DiplomacyActDef[] = [
   { id: 'gift', name: 'Send a state gift', desc: 'Gold smooths most roads.', cost: '100 treasury', effect: 'Relations +12', envoy: true },
   { id: 'pact', name: 'Sign a non-aggression pact', desc: 'Neither side attacks for 12 turns.', cost: '30 influence', effect: 'No war for 12 turns; relations +5', envoy: true },
   { id: 'denounce', name: 'Denounce their government', desc: 'Say in public what you think of them.', cost: 'Free', effect: 'Relations −25; stability +3 at home', envoy: true },
-  { id: 'war', name: 'Declare war', desc: 'Your armies may cross their border.', cost: 'Stability −4', effect: 'Ends all pacts. Breaking a non-aggression pact angers every nation.', envoy: false },
+  { id: 'war', name: 'Declare war', desc: 'Your armies may cross their border.', cost: 'Stability', effect: 'How much stability it costs depends on your form of government. Ends all pacts. Breaking a non-aggression pact angers every nation.', envoy: false },
   { id: 'peace', name: 'Propose peace', desc: 'End the fighting where the lines now stand.', cost: 'Free', effect: 'Ends the war and starts a 6-turn truce, if they accept', envoy: false },
 ];
 
@@ -63,6 +63,8 @@ export function canDiplomacy(state: GameState, them: NationId, act: DiplomacyAct
 
   if (act === 'war') {
     if (rel.war) return { ok: false, reason: 'Already at war' };
+    const gov = governmentOf(me);
+    if (me.stats.stability < gov.warNeedsStability) return { ok: false, reason: `A ${gov.name.toLowerCase()} needs ${gov.warNeedsStability}% stability to go to war` };
     return { ok: true };
   }
   if (act === 'peace') {
@@ -117,7 +119,7 @@ export function declareWar(state: GameState, aggressor: NationId, target: Nation
   rel.tradePact = false;
   rel.napUntil = 0;
   rel.value = Math.min(rel.value - 40, -60);
-  A.stats.stability = clamp(A.stats.stability - (brokePact ? 10 : 4), 0, 100);
+  A.stats.stability = clamp(A.stats.stability - governmentOf(A).warStability - (brokePact ? 6 : 0), 0, 100);
   for (const other of state.order) {
     if (other === aggressor || other === target || !state.nations[other].alive) continue;
     // Friends of the victim, and everyone if a pact was broken, think less of the aggressor.
