@@ -4,13 +4,15 @@ import { ACTIVE_OBJECTIVES, OBJECTIVES } from './content/objectives';
 import { BALANCE, DEFAULT_NAMES, FOUNDING_VALUES, NATION_COLORS, RIVAL_POOL, START_RADIUS } from './content/world';
 import { baseline } from './diplomacy';
 import { distance, neighbours } from './hex';
+import { GOODS } from './content/market';
+import { newMarket } from './market';
 import { noUnits } from './military';
 import { newRelation, pairKey } from './relations';
 import { Rng } from './rng';
 import type { AxisId, FoundingChoices, GameSetup, GameState, Hex, HexRef, Nation } from './types';
 import { MAX_NATIONS, MIN_NATIONS, generateWorld } from './worldgen';
 
-export const SAVE_VERSION = 6;
+export const SAVE_VERSION = 7;
 
 function baseNation(partial: Pick<Nation, 'id' | 'name' | 'short' | 'motto' | 'description' | 'color' | 'flag' | 'capital' | 'startingLand' | 'axes' | 'personality'>): Nation {
   return {
@@ -25,6 +27,8 @@ function baseNation(partial: Pick<Nation, 'id' | 'name' | 'short' | 'motto' | 'd
     government: governmentFor(partial.axes),
     powerReady: {},
     tally: { battlesWon: 0, capitalsTaken: 0, powersUsed: 0 },
+    tax: 0,
+    exports: Object.fromEntries(GOODS.map((g) => [g.id, g.exportedByDefault])) as Nation['exports'],
     seat: null,
   };
 }
@@ -115,12 +119,13 @@ export function createGame(setup: GameSetup): GameState {
     if (n.startingLand === 'highlands') [1, 3, 5].forEach((i) => { ring[i].terrain = i === 3 ? 'hills' : 'highlands'; });
   }
 
-  const state: GameState = {
+  const bare: Omit<GameState, 'market'> = {
     version: SAVE_VERSION, id: setup.id ?? `local-${seed >>> 0}`, turn: 1, rng: 0, humans,
     settings: { questionSeconds: 0, turnSeconds: 0, clock: 'together', ...setup.settings }, cols, rows, hexes, nations, order,
     armies: [], nextArmyId: 1, relations: {}, proposals: [],
     log: [], status: 'playing', winner: null, outcome: '',
   };
+  const state: GameState = { ...bare, market: newMarket(bare) };
 
   for (const id of order) {
     const n = nations[id];

@@ -112,13 +112,15 @@ export function NationScreen() {
               <table className="ledger"><tbody>
                 <tr><td>Capital administration</td><td>{eco.income.base}</td></tr>
                 <tr><td>Land ({eco.hexes} hexes)</td><td>{eco.income.land}</td></tr>
-                <tr><td>Taxes on the population</td><td>{eco.income.population}</td></tr>
-                <tr><td>Businesses and tariffs</td><td>{eco.income.businesses}</td></tr>
+                <tr><td>Taxes on wages</td><td>{eco.income.population}</td></tr>
+                <tr><td>Taxes on businesses</td><td>{eco.income.businesses}</td></tr>
                 <tr><td>Trade pacts</td><td>{eco.income.trade}</td></tr>
+                <tr><td>Exports</td><td>{eco.income.exports}</td></tr>
                 <tr><td>Stability and merchants</td><td>×{eco.income.multiplier.toFixed(2)}</td></tr>
                 <tr><td>Army upkeep ({eco.units} units)</td><td>−{eco.upkeep}</td></tr>
                 <tr className="total"><td>Net</td><td className={eco.net >= 0 ? 'pos' : 'neg'}>{signed(eco.net)}</td></tr>
               </tbody></table>
+              <p className="small muted" style={{ marginTop: 8 }}>Tax policy: {eco.tax.name.toLowerCase()}. <a href="#/economy">Businesses, taxes and exports</a></p>
             </div>
             <div className="card">
               <h3 className="eyebrow" style={{ marginBottom: 8 }}>Supply</h3>

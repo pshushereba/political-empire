@@ -16,6 +16,9 @@ import type { GameState, Hex, HexRef, NationId, UnitCounts } from './types';
 export function runAi(state: GameState, id: NationId, rng: Rng): void {
   if (!state.nations[id].alive) return;
   usePowers(state, id);
+  // Sell grain abroad only when there is plenty at home.
+  const food = economy(state, id).supply.net;
+  state.nations[id].exports.grain = state.nations[id].exports.grain ? food > 2 : food > 8;
   considerWarAndPeace(state, id, rng);
   recruit(state, id, rng);
   build(state, id, rng);

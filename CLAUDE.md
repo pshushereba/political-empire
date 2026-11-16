@@ -23,7 +23,7 @@ npm run build      # typecheck, then production build to dist/
 | `src/backend/` | The Supabase client and every call to it. Nothing else imports `@supabase/supabase-js`. See `docs/backend.md`. |
 | `supabase/migrations/` | Database schema and row-level security policies. |
 | `src/art/` | The sprite registry. All drawing data lives here. See `docs/art.md`. |
-| `src/ui/` | React screens: Founding, Map, District (the tilted close-up), Nation, Council, Diplomacy. They read state and dispatch actions. `legacy.ts` keeps scores between games. |
+| `src/ui/` | React screens: Founding, Map, District (the tilted close-up), Nation, Economy, Council, Diplomacy. They read state and dispatch actions. `legacy.ts` keeps scores between games. |
 | `docs/game-model.md` | The rules in prose, with the numbers. Keep it in step with the code. |
 | `docs/art.md` | How to replace or add graphics. |
 | `docs/ROADMAP.md` | What comes next, in order, and the long-term vision. Keep it current when a phase lands or priorities change. |

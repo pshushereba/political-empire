@@ -364,6 +364,71 @@ export const DILEMMAS: Dilemma[] = [
         effects: [{ target: 'relations', delta: 3 }, { target: 'clergy', delta: -6 }, { target: 'stability', delta: -2 }] },
     ],
   },
+  // ---- Tax policy: these move the nation's tax level, which scales what every business and wage pays ----
+  {
+    id: 'business-levy', title: 'The counting-house levy', category: 'Taxes',
+    body: 'The treasury wants a larger share of what the nation’s businesses earn. The Merchant Houses say every coin taken is a coin not spent on a new warehouse.',
+    voices: [
+      { faction: 'merchants', name: 'Guild treasurer', quote: 'Tax the hen and you will still have eggs. Tax her twice and you will have soup, once.' },
+      { faction: 'dockworkers', name: 'Shift foreman', quote: 'They cry poverty from a carriage. Let them pay what the rest of us pay.' },
+    ],
+    choices: [
+      { title: 'Raise taxes on business', desc: 'A higher levy on every shop, mine and mill.', outcome: 'The levy rises. The ledgers are fuller, and the Houses colder.',
+        effects: [{ target: 'tax', delta: 1 }, { target: 'merchants', delta: -8 }, { target: 'dockworkers', delta: 5 }, { target: 'market', delta: -6 }] },
+      { title: 'Cut them to draw in trade', desc: 'Take less from each, and hope for more of them.', outcome: 'The levy falls. New signs go up along the market streets.',
+        effects: [{ target: 'tax', delta: -1 }, { target: 'merchants', delta: 8 }, { target: 'dockworkers', delta: -4 }, { target: 'market', delta: 8 }] },
+      { title: 'Keep the rate, hire auditors', desc: 'Collect what is already owed.', outcome: 'The auditors find a good deal that had been overlooked.',
+        effects: [{ target: 'treasury', delta: 50 }, { target: 'merchants', delta: -4 }, { target: 'reform', delta: 4 }] },
+    ],
+  },
+  {
+    id: 'income-tax', title: 'A tax on every wage', category: 'Taxes',
+    body: 'The finance ministry proposes something new: a tax on wages, collected from every worker in the country. Nobody likes it. The question is who should dislike it most.',
+    voices: [
+      { faction: 'dockworkers', name: 'Union clerk', quote: 'A docker’s wage already goes on rent and bread. Find your money where the money is.' },
+      { faction: 'merchants', name: 'Banker', quote: 'Punish success and you will soon have nothing left to tax.' },
+    ],
+    choices: [
+      { title: 'A flat tax on all wages', desc: 'The same share from everyone.', outcome: 'Every pay packet is a little lighter. So is every mood.',
+        effects: [{ target: 'tax', delta: 1 }, { target: 'dockworkers', delta: -10 }, { target: 'settlers', delta: -6 }, { target: 'market', delta: 4 }] },
+      { title: 'Tax only the highest earners', desc: 'Those with the most pay the most.', outcome: 'The great houses pay, loudly. The taverns approve.',
+        effects: [{ target: 'tax', delta: 1 }, { target: 'merchants', delta: -14 }, { target: 'dockworkers', delta: 8 }, { target: 'market', delta: -8 }] },
+      { title: 'No new tax', desc: 'Find savings instead.', outcome: 'The ministry is told to do more with less, and does a little less with less.',
+        effects: [{ target: 'treasury', delta: -40 }, { target: 'stability', delta: 3 }, { target: 'settlers', delta: 4 }] },
+    ],
+  },
+  {
+    id: 'tax-holiday', title: 'A holiday for new ventures', category: 'Taxes',
+    body: 'A delegation of merchants asks that new businesses pay nothing for their first years. They promise the country will fill with workshops. The treasury sees a hole in the budget.',
+    voices: [
+      { faction: 'merchants', name: 'Young trader', quote: 'I can start a business or pay your levy. I cannot yet do both.' },
+      { faction: 'clergy', name: 'Almoner', quote: 'The old widow pays her tithe. Why should a new shopkeeper be holier than she is?' },
+    ],
+    choices: [
+      { title: 'Grant the holiday', desc: 'Lower taxes across the board to make room.', outcome: 'The budget tightens. The business registers fill up.',
+        effects: [{ target: 'tax', delta: -1 }, { target: 'merchants', delta: 10 }, { target: 'clergy', delta: -4 }, { target: 'market', delta: 8 }] },
+      { title: 'Offer it to foreign firms only', desc: 'Lure investment from abroad.', outcome: 'Foreign names appear over new doors. Local traders mutter about it.',
+        effects: [{ target: 'treasury', delta: 40 }, { target: 'relations', delta: 4 }, { target: 'merchants', delta: -6 }, { target: 'openness', delta: 8 }] },
+      { title: 'Refuse', desc: 'Everyone pays the same.', outcome: 'The delegation leaves disappointed. The widow keeps paying her tithe.',
+        effects: [{ target: 'merchants', delta: -6 }, { target: 'clergy', delta: 5 }, { target: 'stability', delta: 2 }] },
+    ],
+  },
+  {
+    id: 'tax-revolt', title: 'The collectors are chased out', category: 'Taxes',
+    body: 'In three market towns, crowds have run the tax collectors out and burned the rolls. Other towns are watching to see what the capital does.',
+    voices: [
+      { faction: 'settlers', name: 'Town reeve', quote: 'We paid for roads we never saw. We are done paying for them.' },
+      { faction: 'clergy', name: 'Chief magistrate', quote: 'Let three towns refuse today and thirty will refuse by harvest.' },
+    ],
+    choices: [
+      { title: 'Send the collectors back with soldiers', desc: 'The law is the law.', outcome: 'The taxes are collected at bayonet point. Nobody forgets the sight.',
+        effects: [{ target: 'treasury', delta: 60 }, { target: 'stability', delta: -6 }, { target: 'settlers', delta: -12 }, { target: 'liberty', delta: -8 }] },
+      { title: 'Lower the rates', desc: 'Admit they were too high.', outcome: 'New, lighter rolls are drawn up. The towns pay them, grudgingly.',
+        effects: [{ target: 'tax', delta: -1 }, { target: 'stability', delta: 5 }, { target: 'settlers', delta: 8 }] },
+      { title: 'Let the towns collect their own', desc: 'They keep a share and send the rest.', outcome: 'The towns collect from their own neighbours, and are thorough about it.',
+        effects: [{ target: 'treasury', delta: -30 }, { target: 'settlers', delta: 10 }, { target: 'stability', delta: 3 }, { target: 'liberty', delta: 8 }] },
+    ],
+  },
 ];
 
 export const DILEMMA_BY_ID: Record<string, Dilemma> = Object.fromEntries(DILEMMAS.map((d) => [d.id, d]));

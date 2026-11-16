@@ -173,6 +173,8 @@ export function applyEffects(state: GameState, effects: Effect[], id: NationId):
     } else if ((FACTION_IDS as string[]).includes(e.target)) {
       const f = e.target as FactionId;
       n.factions[f] = clamp(n.factions[f] + e.delta, 0, 100);
+    } else if (e.target === 'tax') {
+      n.tax = clamp(n.tax + e.delta, -2, 2);
     } else if (e.target === 'population') {
       n.stats.population = Math.round(n.stats.population * (1 + e.delta / 100));
     } else if (e.target === 'stability') {
@@ -366,6 +368,8 @@ export function check(state: GameState, action: Action, id: NationId, now = 0): 
       return canRespond(state, id, action.proposal, action.accept);
     case 'power':
       return canUsePower(state, id, action.power);
+    case 'setExport':
+      return action.good in state.nations[id].exports ? yes : no('No such good');
     case 'checkIn':
       return /^\d{4}-\d{2}-\d{2}$/.test(action.day) && (!seat.checkIn.day || dayNumber(action.day) > dayNumber(seat.checkIn.day)) ? yes : no('Already checked in today');
     case 'openQuestion':
@@ -447,6 +451,9 @@ export function applyAction(state: GameState, action: Action, id: NationId, now 
       break;
     case 'respond':
       doRespond(s, id, action.proposal, action.accept);
+      break;
+    case 'setExport':
+      s.nations[id].exports[action.good] = action.on;
       break;
     case 'power':
       doPower(s, id, governmentOf(s.nations[id]).powers.find((p) => p.id === action.power)!);

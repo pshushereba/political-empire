@@ -40,7 +40,12 @@
 29. **Twelve nation colours**, assigned by seat, first player amber: amber, teal, rose, sky, violet, lime, coral, sand, orchid, cobalt, fern, copper. A first pass, in `design-tokens.json` and `NATION_COLORS`. Every nation is also labelled by name, so colour is never the only signal.
 30. **Larger worlds are won with a smaller share of the land** (30% from eight nations up), since 60% of a twelve-nation world would mean defeating nearly everyone.
 
+31. **Tax policy is set by the daily question, not by a slider.** Four tax questions move a five-level dial that scales business and wage taxes. Higher taxes pay immediately and cost approval and the Merchants' goodwill over time.
+32. **An export market, kept simple.** Four goods, world prices driven by how many nations make each, and shipping capacity from ports and trade pacts. Selling is automatic; the player's choices are what to build, what to hold back, and who to sign pacts with. No stockpiles, imports or player-to-player trading yet.
+
 ## Open questions
+
+- **How far should trade go?** Imports (buying grain when short), stockpiles, trading directly with a chosen nation, embargoes and blockades are all natural next steps.
 
 - **Should ranked scores be validated on the server?** Today the client reports its own score. An Edge Function could replay the game and compute it. Worth doing before the ranking matters to anyone.
 - **Sign-in methods.** Email link only so far. Google, Apple or passwords are a Supabase setting plus a button.

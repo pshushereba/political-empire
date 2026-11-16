@@ -1,3 +1,5 @@
+import type { Good } from './content/market';
+
 // Core data model. Everything in src/game is UI-free and pure:
 // functions take a GameState and return a new one.
 
@@ -93,6 +95,10 @@ export interface Nation {
   /** Power id → first turn it can be used again. */
   powerReady: Record<string, number>;
   tally: { battlesWon: number; capitalsTaken: number; powersUsed: number };
+  /** Tax policy, −2 (tax haven) … +2 (punishing). Moved by the daily question. */
+  tax: number;
+  /** Which goods the nation sells abroad. */
+  exports: Record<Good, boolean>;
   /** Present when a person runs this nation; null when the computer does. */
   seat: Seat | null;
 }
@@ -146,7 +152,7 @@ export interface Envoy extends HexRef {
 
 export interface Effect {
   /** A stat, faction or axis id. Axis deltas are toward Liberty / Market / Reform / Openness. */
-  target: StatId | FactionId | AxisId | 'relations';
+  target: StatId | FactionId | AxisId | 'relations' | 'tax';
   delta: number;
 }
 
@@ -201,6 +207,8 @@ export interface GameState {
   /** Nations run by people, in turn order. Every other nation is run by the computer. */
   humans: NationId[];
   settings: GameSettings;
+  /** World prices for exports. `drift` is each good's slow random wander; `previous` is last turn's price. */
+  market: { prices: Record<Good, number>; previous: Record<Good, number>; drift: Record<Good, number> };
   cols: number;
   rows: number;
   /** Row-major: index = r * cols + c. */
@@ -265,6 +273,7 @@ export type Action =
   | { type: 'decide'; choice: number }
   | { type: 'diplomacy'; nation: NationId; act: DiplomacyAct }
   | { type: 'power'; power: string }
+  | { type: 'setExport'; good: Good; on: boolean }
   | { type: 'respond'; proposal: string; accept: boolean }
   /** Unseal a timed question and start its clock. */
   | { type: 'openQuestion' }

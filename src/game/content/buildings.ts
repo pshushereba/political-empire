@@ -1,5 +1,6 @@
 import type { BuildingCategory, BuildingId, Terrain } from '../types';
 import type { GovernmentId } from './governments';
+import type { Good } from './market';
 
 /** A gain or loss for each matching finished building on the same hex or a neighbouring one. */
 export interface Synergy {
@@ -35,6 +36,10 @@ export interface BuildingDef {
   unique?: boolean;
   /** Units can be recruited on this hex. */
   recruits?: boolean;
+  /** One unit of this good a turn, for the export market. */
+  produces?: Good;
+  /** Units of goods it lets the nation sell abroad each turn. */
+  exportCapacity?: number;
   /** Placement bonuses and penalties. */
   synergies?: Synergy[];
   /** Only these forms of government may build it. Existing ones keep working after a change of government. */
@@ -55,7 +60,7 @@ export const BUILDINGS: BuildingDef[] = [
     desc: 'A standing post that answers to the capital. Troops can be raised here.' },
 
   // Utilities
-  { id: 'farm', name: 'Farm co-operative', category: 'utilities', cost: 80, turns: 1, supply: 3, era: 0, needs: ['farmland', 'plains'],
+  { id: 'farm', name: 'Farm co-operative', category: 'utilities', cost: 80, turns: 1, supply: 3, era: 0, needs: ['farmland', 'plains'], produces: 'grain',
     synergies: [{ near: ['water', 'granary'], supply: 1, max: 2, why: 'Irrigation and storage nearby' }],
     desc: 'Pooled land and shared machinery. Feeds the cities.' },
   { id: 'water', name: 'Water works', category: 'utilities', cost: 120, turns: 2, supply: 4, approval: 1, era: 0, needs: ['river', 'coast'],
@@ -67,18 +72,18 @@ export const BUILDINGS: BuildingDef[] = [
   { id: 'shop', name: 'Market street', category: 'commerce', cost: 80, turns: 1, income: 7, era: 0,
     synergies: [{ near: ['clinic', 'school', 'transit'], income: 2, max: 3, why: 'Customers from nearby services' }],
     desc: 'Small businesses for the local population.' },
-  { id: 'sawmill', name: 'Timber yard', category: 'commerce', cost: 100, turns: 2, income: 8, supply: 1, era: 0, needs: ['forest'],
+  { id: 'sawmill', name: 'Timber yard', category: 'commerce', cost: 100, turns: 2, income: 8, supply: 1, era: 0, needs: ['forest'], produces: 'timber',
     synergies: [{ near: ['factory'], income: 3, max: 1, why: 'Sells timber to a factory' }],
     desc: 'Timber for building and for export.' },
-  { id: 'mine', name: 'Mine', category: 'commerce', cost: 140, turns: 2, income: 12, approval: -1, era: 0, needs: ['hills', 'highlands'],
+  { id: 'mine', name: 'Mine', category: 'commerce', cost: 140, turns: 2, income: 12, approval: -1, era: 0, needs: ['hills', 'highlands'], produces: 'ore',
     synergies: [{ near: ['factory', 'power'], income: 3, max: 2, why: 'Buyers for ore and coal' }],
     desc: 'Iron and coal. Hard work and good money.' },
-  { id: 'factory', name: 'Factory', category: 'commerce', cost: 180, turns: 3, income: 13, supply: 2, approval: -1, era: 1,
+  { id: 'factory', name: 'Factory', category: 'commerce', cost: 180, turns: 3, income: 13, supply: 2, approval: -1, era: 1, produces: 'goods',
     synergies: [{ near: ['mine', 'sawmill', 'power'], income: 3, max: 3, why: 'Raw materials and power nearby' }],
     desc: 'Jobs and goods. Needed to build armour.' },
-  { id: 'port', name: 'Port terminal', category: 'commerce', cost: 240, turns: 3, income: 18, supply: 2, era: 1, needs: ['coast'],
+  { id: 'port', name: 'Port terminal', category: 'commerce', cost: 240, turns: 3, income: 18, supply: 2, era: 1, needs: ['coast'], exportCapacity: 3,
     synergies: [{ near: ['factory', 'shop'], income: 2, max: 3, why: 'Goods to ship' }],
-    desc: 'Ships from other nations dock here.' },
+    desc: 'Ships from other nations dock here. Lets you sell 3 more units of goods abroad each turn.' },
   { id: 'bank', name: 'Bank', category: 'commerce', cost: 300, turns: 3, income: 26, era: 1, needs: ['capital'], unique: true,
     synergies: [{ near: ['shop', 'port', 'exchange'], income: 3, max: 3, why: 'Businesses to lend to' }],
     desc: 'Loans for merchants. The Merchant Houses approve.' },

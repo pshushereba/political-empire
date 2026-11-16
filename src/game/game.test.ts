@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   applyAction, armyAt, armySize, canBuild, check, createGame, DEFAULT_FOUNDING, DILEMMA_BY_ID, distance, economy,
   forecast, hexAt, key, MAX_STACK, modifiers, neighbours, ownedHexes, reachable, relation, requirementMet, stance,
-  BUILDING_BY_ID, buildCost, buildingYield, coord, governmentFor, placementBonusCount, placementEffect, score, allReady, questionDeadline, questionSealed, turnDeadline, generateWorld, hegemonyShare, type FoundingChoices, type GameState, type Action,
+  BUILDING_BY_ID, buildCost, buildingYield, coord, governmentFor, placementBonusCount, placementEffect, score, allReady, questionDeadline, questionSealed, turnDeadline, generateWorld, hegemonyShare, priceList, type FoundingChoices, type GameState, type Action,
 } from './index';
 
 const fresh = (over: Partial<FoundingChoices> & { seed?: number; day?: string } = {}): GameState => {
@@ -101,7 +101,7 @@ describe('building', () => {
     s = act(s, { type: 'decide', choice: 0 });
     s = act(s, { type: 'endTurn' });
     expect(hexAt(s, cap).buildings[1].turnsLeft).toBe(0);
-    expect(economy(s, 'p1').approval).toBe(economy(fresh(), 'p1').approval + 3);
+    expect(buildingYield(s, hexAt(s, cap), 1).approval).toBe(3); // the finished clinic now counts
     expect(income0).toBeGreaterThan(0);
   });
   it('enforces land, era and uniqueness', () => {
@@ -468,5 +468,71 @@ describe('generated worlds', () => {
     }
     expect(Date.now() - start).toBeLessThan(20_000);
     expect(s.log.some((l) => l.kind === 'war')).toBe(true); // a world this crowded does not stay peaceful
+  });
+});
+
+describe('taxes and trade', () => {
+  it('lets a tax question change what every business pays', () => {
+    let s = structuredClone(fresh());
+    seat(s).dilemma = { id: 'business-levy', choice: null, openedAt: null };
+    const before = economy(s, 'p1');
+    expect(before.tax.name).toBe('Moderate taxes');
+    s = act(s, { type: 'decide', choice: 0 }); // raise taxes on business
+    const after = economy(s, 'p1');
+    expect(s.nations.p1.tax).toBe(1);
+    expect(after.tax.revenue).toBe(1.15);
+    expect(after.income.businesses).toBe(Math.round(7 * 1.15)); // the one market street
+    expect(after.approval).toBeLessThan(before.approval);
+    // More businesses means more at stake.
+    hexAt(s, s.nations.p1.capital).buildings.push({ type: 'shop', turnsLeft: 0 });
+    expect(economy(s, 'p1').income.businesses).toBe(Math.round(14 * 1.15));
+  });
+
+  it('sours the merchants on high taxes over time', () => {
+    let s = structuredClone(fresh());
+    s.nations.p1.tax = 2;
+    const m0 = s.nations.p1.factions.merchants;
+    s = act(s, { type: 'decide', choice: 1 });
+    s = act(s, { type: 'endTurn' });
+    expect(s.nations.p1.factions.merchants).toBeLessThan(m0);
+  });
+
+  it('sells what the nation makes abroad, up to what it can ship', () => {
+    const s = structuredClone(fresh());
+    const cap = hexAt(s, s.nations.p1.capital);
+    expect(economy(s, 'p1').exports.income).toBe(0); // nothing to sell yet
+    cap.buildings.push({ type: 'factory', turnsLeft: 0 });
+    const land = ownedHexes(s, 'p1').filter((h) => h !== cap);
+    land[0].buildings.push({ type: 'mine', turnsLeft: 0 }, { type: 'mine', turnsLeft: 0 });
+    let e = economy(s, 'p1');
+    expect(e.exports.produced).toMatchObject({ goods: 1, ore: 2 });
+    expect(e.exports.capacity).toBe(1); // by road only
+    expect(e.exports.sold.goods + e.exports.sold.ore).toBe(1);
+    // A port and a trade pact open the way for the rest.
+    land[1].buildings.push({ type: 'port', turnsLeft: 0 });
+    relation(s, 'p1', 'ostmark').tradePact = true;
+    e = economy(s, 'p1');
+    expect(e.exports.capacity).toBe(1 + 3 + 2);
+    expect(e.exports.sold).toMatchObject({ goods: 1, ore: 2 });
+    expect(e.exports.income).toBeGreaterThan(15);
+  });
+
+  it('keeps grain at home unless told to sell it, and selling it costs supply', () => {
+    let s = structuredClone(fresh());
+    ownedHexes(s, 'p1')[1].buildings.push({ type: 'farm', turnsLeft: 0 });
+    const kept = economy(s, 'p1');
+    expect(kept.exports.sold.grain).toBe(0);
+    s = act(s, { type: 'setExport', good: 'grain', on: true });
+    const sold = economy(s, 'p1');
+    expect(sold.exports.sold.grain).toBe(1);
+    expect(sold.supply.net).toBe(kept.supply.net - 1);
+    expect(sold.income.exports).toBeGreaterThan(0);
+  });
+
+  it('moves prices with the world: a glut is cheap', () => {
+    const s = structuredClone(fresh());
+    const base = priceList(s, s.market.drift).ore;
+    for (const h of s.hexes) if (h.owner) h.buildings = [{ type: 'mine', turnsLeft: 0 }];
+    expect(priceList(s, s.market.drift).ore).toBeLessThan(base);
   });
 });

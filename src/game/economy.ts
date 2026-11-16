@@ -1,6 +1,7 @@
 import { BUILDING_BY_ID } from './content/buildings';
 import { GOVERNMENT_BY_ID, type GovernmentDef, type GovernmentId } from './content/governments';
 import { buildingYield } from './yields';
+import { GOOD_BY_ID, GOOD_IDS, MARKET, taxLevel, type Good } from './content/market';
 import { BALANCE, ERAS, FACTION_IDS, TERRAIN, UNIT_BY_ID, UNIT_IDS } from './content/world';
 import { pairKey } from './relations';
 import type { GameState, Hex, Nation, NationId } from './types';
@@ -102,7 +103,10 @@ export function hasFinished(state: GameState, id: NationId, building: string): b
 
 export interface Economy {
   hexes: number;
-  income: { base: number; land: number; population: number; businesses: number; trade: number; multiplier: number; gross: number };
+  income: { base: number; land: number; population: number; businesses: number; trade: number; exports: number; multiplier: number; gross: number };
+  /** What the nation makes for sale abroad, how much it can ship, and what was sold at today's prices. */
+  exports: { produced: Record<Good, number>; sold: Record<Good, number>; capacity: number; ports: number; pacts: number; income: number };
+  tax: { level: number; name: string; revenue: number };
   upkeep: number;
   net: number;
   supply: { produced: number; used: number; net: number };
@@ -128,6 +132,9 @@ export function economy(state: GameState, id: NationId): Economy {
   let approval = m.approval;
   let security = 0;
   let influence = BALANCE.baseInfluence + m.influence;
+  const made: Record<Good, number> = { grain: 0, timber: 0, ore: 0, goods: 0 };
+  let portCapacity = 0;
+  let ports = 0;
   for (const h of hexes) {
     const t = TERRAIN[h.terrain];
     land += t.income;
@@ -135,7 +142,10 @@ export function economy(state: GameState, id: NationId): Economy {
     h.buildings.forEach((b, i) => {
       if (b.turnsLeft > 0) return;
       const y = buildingYield(state, h, i);
-      if (BUILDING_BY_ID[b.type].category === 'commerce') commerce += y.income;
+      const def = BUILDING_BY_ID[b.type];
+      if (def.produces) made[def.produces]++;
+      if (def.exportCapacity) { portCapacity += def.exportCapacity; ports++; }
+      if (def.category === 'commerce') commerce += y.income;
       else otherIncome += y.income;
       supply += y.supply;
       approval += y.approval;
@@ -146,19 +156,39 @@ export function economy(state: GameState, id: NationId): Economy {
 
   let trade = 0;
   let wars = 0;
+  let pacts = 0;
   for (const other of state.order) {
     if (other === id || !state.nations[other].alive) continue;
     const rel = state.relations[pairKey(id, other)];
-    if (rel.tradePact) trade += BALANCE.tradePactIncome * m.tradeMult;
+    if (rel.tradePact) { trade += BALANCE.tradePactIncome * m.tradeMult; pacts++; }
     if (rel.war) wars++;
     if (rel.embassy.includes(id)) influence += 1;
   }
 
   const millions = n.stats.population / 1_000_000;
-  const population = millions * BALANCE.incomePerMillion;
-  const businesses = commerce * m.commerceMult + otherIncome;
+  // Tax policy scales what the state takes from businesses and from wages.
+  const tax = taxLevel(n.tax);
+  approval += tax.approval;
+  const population = millions * BALANCE.incomePerMillion * tax.revenue;
+  const businesses = (commerce * m.commerceMult + otherIncome) * tax.revenue;
+
+  // Exports: sell what the nation makes, dearest first, up to what it can ship.
+  const capacity = MARKET.baseCapacity + portCapacity + pacts * MARKET.capacityPerPact;
+  const sold: Record<Good, number> = { grain: 0, timber: 0, ore: 0, goods: 0 };
+  let room = capacity;
+  let exportIncome = 0;
+  let grainSold = 0;
+  for (const g of [...GOOD_IDS].sort((a, b) => state.market.prices[b] - state.market.prices[a])) {
+    if (!n.exports[g]) continue;
+    const units = Math.min(room, made[g]);
+    sold[g] = units;
+    room -= units;
+    exportIncome += units * state.market.prices[g] * m.tradeMult;
+    grainSold += units * GOOD_BY_ID[g].costsSupply;
+  }
+
   const multiplier = (0.75 + n.stats.stability / 200) * (1 + (n.factions.merchants - 50) / 400) * m.incomeMult;
-  const gross = (BALANCE.baseIncome + land + population + businesses + trade) * multiplier;
+  const gross = (BALANCE.baseIncome + land + population + businesses + trade + exportIncome) * multiplier;
 
   let upkeep = 0;
   let units = 0;
@@ -172,7 +202,7 @@ export function economy(state: GameState, id: NationId): Economy {
   upkeep *= m.upkeepMult;
 
   const produced = supply * m.supplyMult * (1 + (n.factions.dockworkers - 50) / 400) + m.supplyFlat + BALANCE.baseSupply;
-  const used = millions * BALANCE.supplyPerMillion + units;
+  const used = millions * BALANCE.supplyPerMillion + units + grainSold;
   const supplyNet = produced - used;
 
   const avgFaction = FACTION_IDS.reduce((s, f) => s + n.factions[f], 0) / FACTION_IDS.length;
@@ -185,7 +215,9 @@ export function economy(state: GameState, id: NationId): Economy {
 
   return {
     hexes: hexes.length,
-    income: { base: BALANCE.baseIncome, land, population: Math.round(population), businesses: Math.round(businesses), trade: Math.round(trade), multiplier, gross: Math.round(gross) },
+    income: { base: BALANCE.baseIncome, land, population: Math.round(population), businesses: Math.round(businesses), trade: Math.round(trade), exports: Math.round(exportIncome), multiplier, gross: Math.round(gross) },
+    exports: { produced: made, sold, capacity, ports, pacts, income: Math.round(exportIncome) },
+    tax: { level: tax.level, name: tax.name, revenue: tax.revenue },
     upkeep: Math.round(upkeep),
     net: Math.round(gross) - Math.round(upkeep),
     supply: { produced: Math.round(produced), used: Math.round(used), net: Math.round(supplyNet) },

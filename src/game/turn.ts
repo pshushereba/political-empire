@@ -5,6 +5,8 @@ import { BALANCE, ERAS, UNIT_BY_ID, UNIT_IDS } from './content/world';
 import { baseline } from './diplomacy';
 import { clamp, economy, eraFor, governmentOf, ownedHexes } from './economy';
 import { coord, hexAt, neighbourHexes } from './hex';
+import { taxLevel } from './content/market';
+import { updateMarket } from './market';
 import { armyAt, armySize, checkOutcome, transferHex } from './military';
 import { activeHumans, enemiesOf, pairKey } from './relations';
 import type { Rng } from './rng';
@@ -23,6 +25,11 @@ function runNation(state: GameState, id: NationId, rng: Rng): void {
   n.stats.treasury += eco.net;
   n.stats.influence += eco.influence;
   n.stats.population = Math.max(50_000, Math.round(n.stats.population * (1 + eco.growthPct / 100)));
+
+  // The Merchant Houses warm to low taxes and sour on high ones, a point a turn.
+  const wanted = taxLevel(n.tax).merchants;
+  if (n.tax > 0 && n.factions.merchants > wanted) n.factions.merchants--;
+  if (n.tax < 0 && n.factions.merchants < wanted) n.factions.merchants++;
 
   // Stability drifts a fifth of the way toward its target each turn.
   const gap = eco.stabilityTarget - n.stats.stability;
@@ -130,6 +137,7 @@ export function resolveTurn(state: GameState, rng: Rng, now: number): void {
     if (state.nations[id].alive) runNation(state, id, rng);
   }
   driftRelations(state);
+  updateMarket(state, rng);
   for (const id of activeHumans(state)) moveEnvoy(state, id);
   // Offers left unanswered for a full turn lapse.
   state.proposals = state.proposals.filter((p) => state.turn - p.turn < BALANCE.proposalTurns);

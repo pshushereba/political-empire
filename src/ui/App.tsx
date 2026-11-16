@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { economy, ERAS, formatPopulation, governmentOf, score, turnDeadline } from '../game';
 import { EffectChips, Logo, signed } from './components/common';
 import { DistrictScreen } from './screens/DistrictScreen';
+import { EconomyScreen } from './screens/EconomyScreen';
 import { CouncilScreen } from './screens/CouncilScreen';
 import { DiplomacyScreen } from './screens/DiplomacyScreen';
 import { Founding } from './screens/Founding';
@@ -13,6 +14,7 @@ const NAV = [
   { path: '/', label: 'Map' },
   { path: '/district', label: 'District' },
   { path: '/nation', label: 'Nation' },
+  { path: '/economy', label: 'Economy' },
   { path: '/council', label: 'Council' },
   { path: '/diplomacy', label: 'Diplomacy' },
 ];
@@ -147,6 +149,7 @@ export function App() {
         : section === 'council' ? <CouncilScreen key={state.turn} />
         : section === 'diplomacy' ? <DiplomacyScreen nationId={arg} />
         : section === 'district' ? <DistrictScreen at={arg} />
+        : section === 'economy' ? <EconomyScreen />
         : <MapScreen />}
       <Overlays />
     </div>

@@ -116,6 +116,21 @@ Settled every turn by `economy()`.
 - **Supply** = 4 + land yields + buildings. Each million people use 8, each unit uses 1. A surplus grows the population (up to +5% a turn); a shortage shrinks it and pulls stability down.
 - **Stability** moves a fifth of the way toward a target each turn: 55, plus approval × 1.5, plus faction effects, minus 4 per war, minus 0.5 per hex beyond 20, minus supply shortage. Below 25%, border hexes can break away.
 - **Influence** (+2 a turn, more from schools, broadcast towers, embassies and ideology) pays for claiming land and for pacts.
+- **Tax policy** is one dial with five levels, moved a step at a time by tax questions at the Council (never set directly). It scales what the state takes from every business and from wages, so the more businesses a nation has, the more each step is worth.
+
+  | Level | Business and wage taxes | Approval | Merchants drift toward |
+  | --- | --- | --- | --- |
+  | Tax haven | ×0.70 | +3 | 80 |
+  | Low taxes | ×0.85 | +1.5 | 65 |
+  | Moderate taxes (start) | ×1.00 | 0 | 50 |
+  | High taxes | ×1.15 | −1.5 | 35 |
+  | Punishing taxes | ×1.30 | −3 | 20 |
+
+  The Merchant Houses' approval moves one point a turn toward the level's figure, and their approval scales all income, so high taxes pay at once and cost slowly.
+- **Exports.** Farm co-operatives make grain, timber yards timber, mines ore, factories manufactured goods: one unit per building per turn. Each turn a nation sells what it makes abroad at the world price, dearest first, up to its shipping capacity: 1 by road, +3 per port terminal, +2 per trade pact. This is on top of what those buildings earn at home. Open nations sell for more (the trade pact bonus applies).
+  - **World prices** start from a base (goods 9, ore 7, timber 5, grain 4), rise to 1.6× when few nations make a good and fall to 0.6× in a glut (balanced at 1.5 producers per nation), and wander up to 8% a turn within a band.
+  - **Grain is kept at home by default.** Each unit sold costs 1 supply. A nation chooses which goods it exports.
+  - War ends a trade pact and the shipping that came with it.
 - **Bankruptcy**: an empty treasury makes a unit desert each turn and costs stability.
 - **Eras** unlock buildings and units. They need both land and people: First Era 22 hexes and 1.4M · Second Era 26 and 2.4M · Third Era 40 and 4.0M.
 
@@ -225,7 +240,7 @@ interface Dilemma {
 }
 ```
 
-- One question per turn, drawn from a shuffled deck of 22 (`content/dilemmas.ts`); none repeats until all have been asked. The first is always *The Saline Docks strike*.
+- One question per turn, drawn from a shuffled deck of 26 (`content/dilemmas.ts`); none repeats until all have been asked. The first is always *The Saline Docks strike*.
 - Effects change stats, faction approval, axes and (via `relations`) every rival's opinion. Axis deltas point toward Liberty / Market / Reform / Openness, so `liberty −12` displays as "Authority +12". Treasury effects grow 50% per era.
 - A choice with `requires` is locked until the stat or axis reaches its threshold.
 - To add a question, add an object to the `DILEMMAS` array. No code changes.
