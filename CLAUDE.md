@@ -2,7 +2,7 @@
 
 A turn-based strategy game. Players found a political nation and shape its character by answering one political question ("dilemma") every turn. On a hexagonal world map they build businesses and services, raise armies, claim land, deal with three rival nations through an envoy, and go to war.
 
-Single-player, in the browser, no server. TypeScript + React + Vite.
+Single-player, in the browser. TypeScript + React + Vite, with Supabase for accounts, cloud saves and the world ranking. The game is offline-first: it runs fully without a backend configured.
 
 ## Commands
 
@@ -19,6 +19,8 @@ npm run build      # typecheck, then production build to dist/
 | --- | --- |
 | `src/game/` | The rules. Pure, UI-free, unit-tested. `applyAction(state, action)` is the only way state changes. |
 | `src/game/content/` | Data: buildings, units, terrain, eras, rival nations, forms of government and their powers, objectives, the daily questions, and every balance number (`BALANCE`). |
+| `src/backend/` | The Supabase client and every call to it. Nothing else imports `@supabase/supabase-js`. See `docs/backend.md`. |
+| `supabase/migrations/` | Database schema and row-level security policies. |
 | `src/art/` | The sprite registry. All drawing data lives here. See `docs/art.md`. |
 | `src/ui/` | React screens: Founding, Map, District (the tilted close-up), Nation, Council, Diplomacy. They read state and dispatch actions. `legacy.ts` keeps scores between games. |
 | `docs/game-model.md` | The rules in prose, with the numbers. Keep it in step with the code. |
@@ -36,6 +38,9 @@ Live design canvas (the prototypes, rendered): https://claude.ai/artifact/H8UMbB
 - Inside `src/game/`, `applyAction` clones the state once and the helpers it calls mutate that draft. Randomness comes from the seeded RNG stored in the state, so the same actions always give the same game.
 - Rival nations go through the same checks and costs as the player. Don't give the AI private rules.
 - Hex coordinates follow `docs/game-model.md` (pointy-top, odd-r offset storage, cube distance).
+- Supabase is the backend and auth provider. Design new features with it in mind, but keep the game playable offline: backend calls must fail quietly and never block play.
+- Every table has row-level security. Only the anon key goes in the client; never the service-role key.
+- `src/game/` must stay free of browser and Supabase imports so it can also run in an Edge Function.
 - The rules never read the clock. Real-world time (the daily run) arrives as data in an action.
 - Dilemmas, buildings, units, governments, powers, objectives and nations are data, not code paths. Balance numbers go in `BALANCE`, not inline.
 - Graphics go through the sprite registry (`<Sprite id>`). No drawing data in screens.

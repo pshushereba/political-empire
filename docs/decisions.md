@@ -24,9 +24,14 @@
 18. **The district close-up is back**, as a view of any owned hex and its six neighbours, flat or tilted. It exists for planning: buildings gain or lose from their neighbours, and the close-up shows the effect of each site before you build. Quick building from the map panel stays.
 19. **Return hooks never gate play.** Objectives give short-term goals, a daily run pays a small bonus for coming back on consecutive days, and a hall of nations keeps scores between games.
 
+20. **Supabase is the backend and auth provider.** Accounts by email link, one cloud save per player, and a shared ranking. The game stays offline-first: the browser save is always written and the backend is optional at runtime. See `docs/backend.md`.
+
 ## Open questions
 
-- **Stronger return hooks need a server.** Notifications, leaderboards shared between players, limited-time events and anything asynchronous ("your rival moved while you were away") are not possible in a browser-only game.
+- **Should ranked scores be validated on the server?** Today the client reports its own score. An Edge Function could replay the game and compute it. Worth doing before the ranking matters to anyone.
+- **Sign-in methods.** Email link only so far. Google, Apple or passwords are a Supabase setting plus a button.
+
+- **Which server-backed return hooks to build.** Candidates are listed at the end of `docs/backend.md`.
 - **Balance.** Numbers were tuned by simulation, not by people playing. Expect to adjust `BALANCE`, unit stats and building yields.
 - **Single-player or multiplayer?** The build is single-player against AI rivals. Is multiplayer (shared world, turns, accounts) planned?
 - **Player-made districts.** The close-up shows a hex and its neighbours; named, player-drawn districts are still open.

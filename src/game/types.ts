@@ -162,6 +162,8 @@ export interface LogEntry {
 
 export interface GameState {
   version: number;
+  /** Identifies this game across devices and in the hall of nations. */
+  id: string;
   turn: number;
   /** Seeded RNG state, so the rules stay pure. */
   rng: number;
@@ -198,6 +200,8 @@ export interface FoundingChoices {
   startingLand: StartingLand;
   flag: Flag;
   seed?: number;
+  /** A unique id for the game. The screen supplies one; the rules never invent randomness. */
+  id?: string;
   /** Today's date, YYYY-MM-DD, for the daily streak. */
   day?: string;
 }

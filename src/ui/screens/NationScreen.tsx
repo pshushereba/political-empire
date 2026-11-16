@@ -3,6 +3,7 @@ import {
   type AxisDef, type Nation,
 } from '../../game';
 import { EffectChips, Flag, signed } from '../components/common';
+import { AccountPanel } from '../components/Account';
 import { useGame } from '../store';
 
 export function verdict(axis: AxisDef, value: number): string {
@@ -213,6 +214,8 @@ export function NationScreen() {
             </section>
           </div>
         </div>
+
+        <AccountPanel />
 
         <section className="row spread card">
           <span className="small muted">The game saves in this browser after every action.</span>

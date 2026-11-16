@@ -1,5 +1,9 @@
 import { useState } from 'react';
 import { AXES, DEFAULT_FOUNDING, FLAG_PAIRS, FOUNDING_QUESTIONS, FOUNDING_VALUES, GOVERNMENT_BY_ID, GOVERNMENTS, governmentFor, STARTING_LANDS, type FoundingChoices } from '../../game';
+import { useEffect } from 'react';
+import { backendConfigured } from '../../backend/client';
+import { fetchRanking, type RankedScore } from '../../backend/cloud';
+import { AccountPanel } from '../components/Account';
 import { loadLegacy } from '../legacy';
 import { Flag, Logo } from '../components/common';
 import { go, useStore } from '../store';
@@ -19,6 +23,8 @@ export function Founding() {
     reform: FOUNDING_VALUES[c.answers.reform], openness: FOUNDING_VALUES[c.answers.openness],
   })];
   const [hall] = useState(loadLegacy);
+  const [world, setWorld] = useState<RankedScore[]>([]);
+  useEffect(() => { if (backendConfigured) fetchRanking(5).then(setWorld, () => undefined); }, []);
   const wonAs = new Set(hall.filter((r) => r.outcome === 'won').map((r) => r.government));
 
   return (
@@ -114,6 +120,17 @@ export function Founding() {
             <span className="small muted">Won as {wonAs.size} of {GOVERNMENTS.length} forms of government{wonAs.size < GOVERNMENTS.length ? `. Not yet: ${GOVERNMENTS.filter((g) => !wonAs.has(g.id)).map((g) => g.name).join(', ')}.` : '.'}</span>
           </section>
         )}
+        {world.length > 0 && (
+          <section className="col gap-8" aria-label="World ranking">
+            <span className="eyebrow">World ranking</span>
+            <ol className="col gap-4 small">
+              {world.map((r, i) => (
+                <li key={i} className="row spread"><span>{i + 1}. {r.nation} <span className="muted">· {GOVERNMENT_BY_ID[r.government]?.name ?? r.government}</span></span><span className="mono">{r.score.toLocaleString()}</span></li>
+              ))}
+            </ol>
+          </section>
+        )}
+        <AccountPanel />
         <div style={{ flex: 1 }} />
         <button type="submit" className="btn primary block">Found the nation</button>
       </aside>

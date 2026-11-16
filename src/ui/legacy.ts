@@ -25,8 +25,8 @@ export function loadLegacy(): LegacyRecord[] {
 }
 
 /** Remember a game that is ending. Very short games aren't worth recording. */
-export function recordLegacy(state: GameState): void {
-  if (state.status === 'playing' && state.turn < 5) return;
+export function recordLegacy(state: GameState): LegacyRecord | null {
+  if (state.status === 'playing' && state.turn < 5) return null;
   const n = state.nations[state.playerId];
   const record: LegacyRecord = {
     name: n.name,
@@ -43,4 +43,5 @@ export function recordLegacy(state: GameState): void {
   } catch {
     // Best-effort, like the save itself.
   }
+  return record;
 }

@@ -9,7 +9,7 @@ import { newRelation, pairKey } from './relations';
 import { Rng } from './rng';
 import type { AxisId, FoundingChoices, GameState, Hex, Nation, Terrain } from './types';
 
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 const LAND: Terrain[] = ['plains', 'forest', 'hills', 'highlands', 'farmland'];
 const hash = (c: number, r: number): number => ((c * 73856093) ^ (r * 19349663)) >>> 0;
@@ -101,7 +101,7 @@ export function createGame(choices: FoundingChoices): GameState {
   if (choices.startingLand === 'highlands') [1, 3, 5].forEach((i) => { ring[i].terrain = i === 3 ? 'hills' : 'highlands'; });
 
   const state: GameState = {
-    version: SAVE_VERSION, turn: 1, rng: 0, playerId: player.id, cols: COLS, rows: ROWS, hexes, nations, order,
+    version: SAVE_VERSION, id: choices.id ?? `local-${(choices.seed ?? 0) >>> 0}`, turn: 1, rng: 0, playerId: player.id, cols: COLS, rows: ROWS, hexes, nations, order,
     armies: [], nextArmyId: 1, relations: {},
     envoy: { ...player.capital, dest: null, arrivesTurn: 0 },
     dilemma: { id: FIRST_DILEMMA, choice: null },

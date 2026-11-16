@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { applyAction, check, checkInBonus, createGame, SAVE_VERSION, type Action, type Check, type Effect, type FoundingChoices, type GameState, type LogEntry } from '../game';
+import { backendConfigured, supabase } from '../backend/client';
+import { deleteSave, fetchSave, pushSave, submitScore, type CloudSave } from '../backend/cloud';
 import { recordLegacy } from './legacy';
 
 /** The player's local calendar day, YYYY-MM-DD. */
@@ -34,6 +36,21 @@ interface Store {
   /** Set when the player comes back on a new day. */
   welcome: { streak: number; bonus: Effect[] } | null;
   dismissWelcome: () => void;
+  account: Account;
+}
+
+/** The player's online account. Everything works without one; signing in adds cloud saves and the world ranking. */
+export interface Account {
+  /** False when no backend is configured: the game is offline-only. */
+  available: boolean;
+  email: string | null;
+  sync: 'idle' | 'saving' | 'saved' | 'error';
+  /** Sends a sign-in link. Resolves to an error message, or null if the email was sent. */
+  signIn: (email: string) => Promise<string | null>;
+  signOut: () => void;
+  /** Set when the account already holds a different game from the one in this browser. */
+  conflict: CloudSave | null;
+  resolveConflict: (keep: 'cloud' | 'local') => void;
 }
 
 const Ctx = createContext<Store | null>(null);
@@ -81,17 +98,92 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return () => document.removeEventListener('visibilitychange', checkIn);
   }, []);
 
+  // ---- Account and cloud save ----
+  const [user, setUser] = useState<{ id: string; email: string | null } | null>(null);
+  const [sync, setSync] = useState<Account['sync']>('idle');
+  const [conflict, setConflict] = useState<CloudSave | null>(null);
+  /** The user id whose cloud save has been compared with the local one. Nothing is uploaded before that. */
+  const [reconciled, setReconciled] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!supabase) return;
+    const apply = (u: { id: string; email?: string } | undefined | null) => setUser((prev) => (u ? (prev?.id === u.id ? prev : { id: u.id, email: u.email ?? null }) : null));
+    supabase.auth.getSession().then(({ data }) => apply(data.session?.user));
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => apply(session?.user));
+    return () => data.subscription.unsubscribe();
+  }, []);
+
+  // On sign-in, decide between the save in this browser and the one in the account.
+  useEffect(() => {
+    if (!user) { setReconciled(null); setConflict(null); setSync('idle'); return; }
+    let cancelled = false;
+    fetchSave().then((cloud) => {
+      if (cancelled) return;
+      const local = ref.current;
+      if (cloud && (!local || (local.id === cloud.state.id && cloud.state.turn > local.turn))) {
+        ref.current = cloud.state;
+        setState(cloud.state);
+      } else if (cloud && local && local.id !== cloud.state.id) {
+        setConflict(cloud);
+      }
+      setReconciled(user.id);
+    }).catch(() => { if (!cancelled) setSync('error'); });
+    return () => { cancelled = true; };
+  }, [user]);
+
+  // Upload shortly after each change, once the two saves have been reconciled.
+  useEffect(() => {
+    if (!user || reconciled !== user.id || conflict) return;
+    const timer = setTimeout(() => {
+      setSync('saving');
+      (state ? pushSave(state) : deleteSave()).then(() => setSync('saved'), () => setSync('error'));
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [state, user, reconciled, conflict]);
+
+  const account = useMemo<Account>(() => ({
+    available: backendConfigured,
+    email: user?.email ?? null,
+    sync,
+    signIn: async (email) => {
+      if (!supabase) return 'Online accounts are not set up for this copy of the game.';
+      try {
+        const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.origin + window.location.pathname } });
+        if (!error) return null;
+        return /fetch|network/i.test(error.message) ? 'Could not reach the server. Check your connection and try again.' : error.message;
+      } catch {
+        return 'Could not reach the server. Check your connection and try again.';
+      }
+    },
+    signOut: () => { void supabase?.auth.signOut(); },
+    conflict,
+    resolveConflict: (keep) => {
+      if (keep === 'cloud' && conflict) { ref.current = conflict.state; setState(conflict.state); setReport(null); }
+      setConflict(null);
+    },
+  }), [user, sync, conflict]);
+
   const store = useMemo<Store>(() => ({
     state,
     dispatch,
     can: (action) => (ref.current ? check(ref.current, action) : { ok: false, reason: 'No game' }),
-    newGame: (choices) => { setReport(null); setState(createGame({ ...choices, day: today() })); },
-    abandon: () => { if (ref.current) recordLegacy(ref.current); setReport(null); setWelcome(null); setState(null); },
+    newGame: (choices) => {
+      setReport(null);
+      setState(createGame({ ...choices, day: today(), id: crypto.randomUUID(), seed: choices.seed ?? (Math.random() * 2 ** 31) | 0 }));
+    },
+    abandon: () => {
+      const ended = ref.current;
+      const record = ended ? recordLegacy(ended) : null;
+      // Signed-in players also enter the shared hall. Failure here must never block a new game.
+      if (ended && record) submitScore(ended.id, record).catch(() => undefined);
+      setReport(null); setWelcome(null); setState(null);
+    },
     report,
     dismissReport: () => setReport(null),
     welcome,
     dismissWelcome: () => setWelcome(null),
-  }), [state, report, welcome, dispatch]);
+    account,
+  }), [state, report, welcome, dispatch, account]);
 
   return <Ctx.Provider value={store}>{children}</Ctx.Provider>;
 }

@@ -65,7 +65,18 @@ function Dialog({ title, eyebrow, children, onClose, closeLabel }: { title: stri
 }
 
 function Overlays() {
-  const { state, report, dismissReport, abandon, welcome, dismissWelcome } = useGame();
+  const { state, report, dismissReport, abandon, welcome, dismissWelcome, account } = useGame();
+  if (account.conflict) {
+    const theirs = account.conflict.state;
+    const cloudNation = theirs.nations[theirs.playerId];
+    const mine = state.nations[state.playerId];
+    return (
+      <Dialog title="Two nations, one account" eyebrow="Choose which game to continue" onClose={() => account.resolveConflict('cloud')} closeLabel={`Continue ${cloudNation.name} · turn ${theirs.turn} (saved online)`}>
+        <p className="body-large">Your account already has a game saved online, and this browser has a different one. Only one can be kept.</p>
+        <button type="button" className="btn block" onClick={() => account.resolveConflict('local')}>Keep {mine.name} · turn {state.turn} (this browser) and replace the online save</button>
+      </Dialog>
+    );
+  }
   if (state.status !== 'playing') {
     return (
       <Dialog title={state.status === 'won' ? 'Victory' : 'Your nation has fallen'} eyebrow={`Turn ${state.turn}`} onClose={abandon} closeLabel="Found a new nation">
