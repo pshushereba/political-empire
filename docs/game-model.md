@@ -90,11 +90,11 @@ Four axes, 0–100: Authority↔Liberty, Collective↔Market, Tradition↔Reform
 
 Every lean has a price, so no answer is free and a centrist state is a real choice rather than a missed bonus.
 
-**Revolt.** A nation with Liberty below 40 can be risen against. The chance each turn grows with how far it leans to authority and how unhappy its people are (low stability counts most, low faction approval the rest), up to 35% a turn at the extreme. Each security bureau cuts it by a quarter, up to two. A revolt loots 20% of the treasury, burns a business or service, turns one unit of the capital's garrison, costs 12 stability, and pushes the nation 5 points toward liberty. Eight turns of quiet follow. Computer-run nations are subject to it too.
+**Revolt.** A nation with Liberty below 40 can be risen against. The chance each turn grows with how far it leans to authority and how unhappy its people are (low stability counts most, low faction approval the rest), up to 35% a turn at the extreme. Each security bureau cuts it by a quarter, up to two; a muzzled press raises it and a free one lowers it. A revolt loots 20% of the treasury, burns a business or service, turns one unit of the capital's garrison, costs 12 stability, and pushes the nation 5 points toward liberty. Eight turns of quiet follow. Computer-run nations are subject to it too.
 
 ### Standing policies
 
-Four dials, each with five levels, moved one step at a time by answers at the Council and never set directly (`content/policies.ts`). Unlike an answer's one-off effects, a policy acts every turn until another answer moves it.
+Eight dials, each with five levels, moved one step at a time by answers at the Council and never set directly (`content/policies.ts`). Unlike an answer's one-off effects, a policy acts every turn until another answer moves it.
 
 | Policy | Lowest level | Highest level |
 | --- | --- | --- |
@@ -102,6 +102,10 @@ Four dials, each with five levels, moved one step at a time by answers at the Co
 | Schooling | Unschooled: business income −18%, buildings cost +15%, influence −2; saves 3 per million people | Learned: business income +15%, buildings −8%, influence +2; costs 7 per million |
 | Public health | None: population growth −1.5% a turn, stability −5; saves 3 per million | Care for all: growth +1%, approval +2; costs 7 per million |
 | Workers' protections | Sink or swim: business income +10%, approval −3, Dockworkers drift to 20 | Cradle to grave: business income −10%, approval +3, Dockworkers drift to 80; costs 5 per million |
+| The press | State press only: stability +4, influence −2, approval −1, risk of revolt +40% | Unbridled: influence +2, approval +1, stability −3, risk of revolt −40% |
+| Church and state | Secular state: business income +5%, stability −3, Clergy drift to 20 | Rule by the temple: stability +6, business income −8%, influence −2, Clergy drift to 80 |
+| Immigration | Sealed borders: stability +3, population growth −0.8% a turn, business income −5%, Settlers drift to 65 | Open door: growth +1.2%, business income +8%, stability −4, approval −1, Settlers drift to 35 |
+| Military footing | Token force: army upkeep −25%, approval +2, defence −15%, raising troops +20% | Garrison state: defence +16%, raising troops −20%, upkeep +12%, approval −2, influence −1 |
 
 The middle level of each does nothing. Faction drift is one point a turn.
 
@@ -247,10 +251,10 @@ interface Dilemma {
 }
 ```
 
-- One question per turn, drawn from a shuffled deck of 33 (`content/dilemmas.ts`); none repeats until all have been asked. The first is always *The Saline Docks strike*.
+- One question per turn, drawn from a shuffled deck of 44 (`content/dilemmas.ts`); none repeats until all have been asked. The first is always *The Saline Docks strike*.
 - Effects change stats, faction approval, axes, standing policies and (via `relations`) every rival's opinion. Axis deltas point toward Liberty / Market / Reform / Openness, so `liberty −12` displays as "Authority +12". Treasury effects grow 50% per era.
 - A choice with `requires` is locked until the stat or axis reaches its threshold.
-- To add a question, add an object to the `DILEMMAS` array. No code changes.
+- To add a question, add an object to the `DILEMMAS` array. No code changes. A test checks that every policy dial can be moved at least three ways up and three ways down, so no dial is left stranded.
 
 ### Pace
 

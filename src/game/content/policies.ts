@@ -4,7 +4,7 @@ import type { FactionId } from '../types';
 // daily question can move. Unlike the one-off effects of an answer, a policy
 // keeps acting every turn until another answer moves it again.
 
-export type PolicyId = 'tax' | 'education' | 'health' | 'welfare';
+export type PolicyId = 'tax' | 'education' | 'health' | 'welfare' | 'press' | 'religion' | 'immigration' | 'military';
 
 export interface PolicyLevel {
   name: string;
@@ -23,6 +23,14 @@ export interface PolicyLevel {
   buildCost?: number;
   /** Treasury per turn for each million people. Negative is a saving. */
   spend?: number;
+  /** Multiplier on army upkeep. */
+  upkeep?: number;
+  /** Multiplier on the cost of raising troops. */
+  recruit?: number;
+  /** Multiplier on the defence of the nation's land. */
+  defence?: number;
+  /** Multiplier on the chance of revolt in an authoritarian nation. */
+  revolt?: number;
   /** A faction whose approval moves one point a turn toward a value while the policy stands. */
   drift?: { faction: FactionId; toward: number };
 }
@@ -83,6 +91,50 @@ export const POLICIES: PolicyDef[] = [
       { name: 'Cradle to grave', business: 0.9, approval: 3, spend: 5, drift: { faction: 'dockworkers', toward: 80 } },
     ],
   },
+  {
+    id: 'press', name: 'The press', up: 'The press freed a level', down: 'The press restricted a level',
+    blurb: 'Who may print what. A muzzled press keeps the peace and hides the pressure building under it.',
+    levels: [
+      { name: 'State press only', stability: 4, influence: -2, approval: -1, revolt: 1.4 },
+      { name: 'Censored press', stability: 2, influence: -1, revolt: 1.2 },
+      { name: 'Licensed press' },
+      { name: 'Free press', stability: -1, influence: 1, revolt: 0.8 },
+      { name: 'Unbridled press', stability: -3, influence: 2, approval: 1, revolt: 0.6 },
+    ],
+  },
+  {
+    id: 'religion', name: 'Church and state', up: 'The temple’s hold strengthened a level', down: 'The temple’s hold loosened a level',
+    blurb: 'How far the Old Clergy reach into public life. Faith steadies a nation and narrows it.',
+    levels: [
+      { name: 'Secular state', stability: -3, business: 1.05, drift: { faction: 'clergy', toward: 20 } },
+      { name: 'Church kept apart', stability: -1, business: 1.02, drift: { faction: 'clergy', toward: 35 } },
+      { name: 'Church respected' },
+      { name: 'Established church', stability: 3, influence: -1, drift: { faction: 'clergy', toward: 65 } },
+      { name: 'Rule by the temple', stability: 6, business: 0.92, influence: -2, drift: { faction: 'clergy', toward: 80 } },
+    ],
+  },
+  {
+    id: 'immigration', name: 'Immigration', up: 'The borders opened a level', down: 'The borders tightened a level',
+    blurb: 'Who may come and stay. Newcomers bring hands and trade, and unsettle those already here.',
+    levels: [
+      { name: 'Sealed borders', growth: -0.8, business: 0.95, stability: 3, drift: { faction: 'settlers', toward: 65 } },
+      { name: 'Strict limits', growth: -0.4, stability: 1 },
+      { name: 'Managed entry' },
+      { name: 'Welcoming', growth: 0.6, business: 1.04, stability: -2 },
+      { name: 'Open door', growth: 1.2, business: 1.08, stability: -4, approval: -1, drift: { faction: 'settlers', toward: 35 } },
+    ],
+  },
+  {
+    id: 'military', name: 'Military footing', up: 'The army put on a heavier footing', down: 'The army put on a lighter footing',
+    blurb: 'How much of the nation is given over to arms. A garrison state is hard to invade and hard to love.',
+    levels: [
+      { name: 'Token force', upkeep: 0.75, defence: 0.85, recruit: 1.2, approval: 2 },
+      { name: 'Light footing', upkeep: 0.88, defence: 0.94, recruit: 1.1, approval: 1 },
+      { name: 'Balanced footing' },
+      { name: 'Heavy footing', upkeep: 1.06, defence: 1.08, recruit: 0.9, approval: -1 },
+      { name: 'Garrison state', upkeep: 1.12, defence: 1.16, recruit: 0.8, approval: -2, influence: -1 },
+    ],
+  },
 ];
 
 export const POLICY_IDS: PolicyId[] = POLICIES.map((p) => p.id);
@@ -100,16 +152,27 @@ export interface PolicyTotals {
   buildCost: number;
   /** Treasury per million people per turn. */
   spend: number;
+  upkeep: number;
+  recruit: number;
+  defence: number;
+  revolt: number;
 }
+
+/** A nation's starting policies: every dial at its middle level. */
+export const neutralPolicies = (): Record<PolicyId, number> => Object.fromEntries(POLICIES.map((p) => [p.id, 0])) as Record<PolicyId, number>;
 
 /** Everything a nation's standing policies add up to. */
 export function policyTotals(policies: Record<PolicyId, number>): PolicyTotals {
-  const t: PolicyTotals = { business: 1, wages: 1, approval: 0, stability: 0, growth: 0, influence: 0, buildCost: 1, spend: 0 };
+  const t: PolicyTotals = { business: 1, wages: 1, approval: 0, stability: 0, growth: 0, influence: 0, buildCost: 1, spend: 0, upkeep: 1, recruit: 1, defence: 1, revolt: 1 };
   for (const id of POLICY_IDS) {
     const l = policyLevel(id, policies[id]);
     t.business *= l.business ?? 1;
     t.wages *= l.wages ?? 1;
     t.buildCost *= l.buildCost ?? 1;
+    t.upkeep *= l.upkeep ?? 1;
+    t.recruit *= l.recruit ?? 1;
+    t.defence *= l.defence ?? 1;
+    t.revolt *= l.revolt ?? 1;
     t.approval += l.approval ?? 0;
     t.stability += l.stability ?? 0;
     t.growth += l.growth ?? 0;

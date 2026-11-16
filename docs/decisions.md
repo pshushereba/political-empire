@@ -47,9 +47,12 @@
 34. **Every ideological lean has a cost as well as a benefit**, so extremes are trade-offs and a collectivist economy, for example, really does earn less from business.
 35. **Hard authoritarian states risk revolt**, which costs treasury, a building, troops and stability and forces concessions.
 
+36. **Eight standing policies.** Press freedom, church and state, immigration and military footing joined taxes, schooling, health and workers' protections. Every category of question now leaves a lasting condition, and a test keeps every dial movable in both directions.
+
 ## Open questions
 
-- **Which other answers deserve a lasting dial?** Candidates: press freedom, religion's role in the state, immigration, military doctrine. Each new dial needs enough questions to move it.
+- **Do eight dials need more questions?** Each has at least three answers that raise it and three that lower it, out of 44 questions. With one question a turn, a given dial moves rarely. More questions, or questions that respond to the nation's current state, would make policy feel more steerable.
+
 
 - **How far should trade go?** Imports (buying grain when short), stockpiles, trading directly with a chosen nation, embargoes and blockades are all natural next steps.
 

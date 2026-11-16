@@ -53,6 +53,11 @@ export function modifiers(n: Nation): Modifiers {
   if (n.startingLand === 'coast') m.incomeMult *= 1.1;
   if (n.startingLand === 'river') m.supplyFlat += 4;
   if (n.startingLand === 'highlands') { m.defenceMult *= 1.2; m.supplyFlat -= 2; }
+  // Standing policies that touch the army and the defence of the land.
+  const pol = policyTotals(n.policies);
+  m.upkeepMult *= pol.upkeep;
+  m.recruitMult *= pol.recruit;
+  m.defenceMult *= pol.defence;
   for (const [k, v] of Object.entries(governmentOf(n).mods) as [keyof Modifiers, number][]) {
     if (k.endsWith('Mult')) m[k] *= v;
     else m[k] += v;
@@ -272,5 +277,7 @@ export function revoltChance(state: GameState, id: NationId): number {
   let bureaus = 0;
   for (const h of state.hexes) if (h.owner === id) bureaus += h.buildings.filter((b) => b.type === 'police' && b.turnsLeft === 0).length;
   const watched = 1 - BALANCE.revoltBureauCut * Math.min(2, bureaus);
-  return Math.round(BALANCE.revoltMaxChance * pressure * discontent * watched * 1000) / 1000;
+  // A muzzled press hides trouble until it bursts; a free one lets it out.
+  const press = policyTotals(n.policies).revolt;
+  return Math.round(Math.min(0.6, BALANCE.revoltMaxChance * pressure * discontent * watched * press) * 1000) / 1000;
 }

@@ -12,6 +12,10 @@ export function levelEffects(l: PolicyLevel): { text: string; good: boolean }[] 
     if (l.wages) out.push({ text: `Wage taxes ${pct(l.wages)}`, good: l.wages > 1 });
   }
   if (l.buildCost) out.push({ text: `Buildings cost ${pct(l.buildCost)}`, good: l.buildCost < 1 });
+  if (l.upkeep) out.push({ text: `Army upkeep ${pct(l.upkeep)}`, good: l.upkeep < 1 });
+  if (l.recruit) out.push({ text: `Raising troops costs ${pct(l.recruit)}`, good: l.recruit < 1 });
+  if (l.defence) out.push({ text: `Defence of your land ${pct(l.defence)}`, good: l.defence > 1 });
+  if (l.revolt) out.push({ text: `Risk of revolt ${pct(l.revolt)}`, good: l.revolt < 1 });
   if (l.growth) out.push({ text: `Population growth ${plus(l.growth)}% a turn`, good: l.growth > 0 });
   if (l.approval) out.push({ text: `Approval ${plus(l.approval)}`, good: l.approval > 0 });
   if (l.stability) out.push({ text: `Stability ${plus(l.stability)}`, good: l.stability > 0 });

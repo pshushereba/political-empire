@@ -121,7 +121,7 @@ export function NationScreen() {
             </p>
             <p className="small muted">
               {state.turn - n.lastRevolt < BALANCE.revoltCooldown ? `The last uprising was on turn ${n.lastRevolt}; the country is quiet for now. ` : ''}
-              Lower it by raising stability and faction approval, by building security bureaus (each cuts the chance by a quarter, up to two), or by governing less harshly.
+              Lower it by raising stability and faction approval, by building security bureaus (each cuts the chance by a quarter, up to two), by freeing the press, or by governing less harshly.
             </p>
           </section>
         )}
@@ -210,7 +210,7 @@ export function NationScreen() {
               </div>
             ))}
             <div className="card col gap-8">
-              <span className="eyebrow">Your doctrine in effect</span>
+              <span className="eyebrow">In effect from ideology, government, policies and starting land</span>
               {effects.length ? <div className="row wrap-row gap-8">{effects.map((e) => <span key={e} className="chip">{e}</span>)}</div> : <span className="small muted">A centrist state: no bonuses, no penalties.</span>}
             </div>
           </section>

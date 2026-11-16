@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   applyAction, armyAt, armySize, canBuild, check, createGame, DEFAULT_FOUNDING, DILEMMA_BY_ID, distance, economy,
   forecast, hexAt, key, MAX_STACK, modifiers, neighbours, ownedHexes, reachable, relation, requirementMet, stance,
-  BUILDING_BY_ID, buildCost, buildingYield, coord, governmentFor, placementBonusCount, placementEffect, score, allReady, questionDeadline, questionSealed, turnDeadline, generateWorld, hegemonyShare, priceList, revoltChance, type FoundingChoices, type GameState, type Action,
+  BUILDING_BY_ID, buildCost, buildingYield, coord, governmentFor, placementBonusCount, placementEffect, score, allReady, questionDeadline, questionSealed, turnDeadline, generateWorld, hegemonyShare, priceList, revoltChance, DILEMMAS, POLICY_IDS, type FoundingChoices, type GameState, type Action,
 } from './index';
 
 const fresh = (over: Partial<FoundingChoices> & { seed?: number; day?: string } = {}): GameState => {
@@ -612,5 +612,56 @@ describe('answers that last', () => {
     }
     expect(revolt).not.toBeNull();
     expect(revoltChance(s, 'p1')).toBe(0); // a spell of quiet follows
+  });
+});
+
+describe('press, temple, border and army', () => {
+  it('keeps every policy dial reachable from the questions, in both directions', () => {
+    for (const p of POLICY_IDS) {
+      const moves = DILEMMAS.flatMap((d) => d.choices.flatMap((c) => c.effects.filter((e) => e.target === p).map((e) => Math.sign(e.delta))));
+      expect(moves.filter((m) => m > 0).length, `${p} up`).toBeGreaterThanOrEqual(3);
+      expect(moves.filter((m) => m < 0).length, `${p} down`).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it('gives every question valid targets and at least two answers anyone can choose', () => {
+    const targets = new Set<string>(['population', 'treasury', 'stability', 'influence', 'relations', 'merchants', 'settlers', 'clergy', 'dockworkers', 'liberty', 'market', 'reform', 'openness', ...POLICY_IDS]);
+    for (const d of DILEMMAS) {
+      expect(d.choices.filter((c) => !c.requires).length, d.id).toBeGreaterThanOrEqual(2);
+      for (const c of d.choices) for (const e of c.effects) expect(targets.has(e.target), `${d.id}: ${e.target}`).toBe(true);
+    }
+    expect(DILEMMAS.length).toBe(44);
+  });
+
+  it('makes a garrison state harder to invade and dearer to keep', () => {
+    const s = structuredClone(fresh());
+    const base = modifiers(s.nations.p1);
+    s.nations.p1.policies.military = 2;
+    const heavy = modifiers(s.nations.p1);
+    expect(heavy.defenceMult).toBeGreaterThan(base.defenceMult);
+    expect(heavy.upkeepMult).toBeGreaterThan(base.upkeepMult);
+    expect(heavy.recruitMult).toBeLessThan(base.recruitMult);
+  });
+
+  it('lets a muzzled press steady the nation while raising the risk of revolt', () => {
+    const s = structuredClone(fresh({ answers: { liberty: 0, market: 1, reform: 1, openness: 1 } }));
+    s.nations.p1.stats.stability = 30;
+    const before = revoltChance(s, 'p1');
+    const calm = economy(s, 'p1').stabilityTarget;
+    s.nations.p1.policies.press = -2;
+    expect(economy(s, 'p1').stabilityTarget).toBeGreaterThan(calm);
+    expect(revoltChance(s, 'p1')).toBeGreaterThan(before);
+  });
+
+  it('moves the temple and the border when their questions are answered', () => {
+    let s = structuredClone(fresh());
+    seat(s).dilemma = { id: 'tithe', choice: null, openedAt: null };
+    s = act(s, { type: 'decide', choice: 0 });
+    expect(s.nations.p1.policies.religion).toBe(1);
+    seat(s).dilemma = { id: 'border-towns', choice: null, openedAt: null };
+    const growth = economy(s, 'p1').growthPct;
+    s = act(structuredClone(s), { type: 'decide', choice: 1 }); // citizenship after five years
+    expect(s.nations.p1.policies.immigration).toBe(1);
+    expect(economy(s, 'p1').growthPct).toBeGreaterThan(growth);
   });
 });
