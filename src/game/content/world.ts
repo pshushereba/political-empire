@@ -119,13 +119,6 @@ export const STARTING_LANDS = [
   { id: 'highlands' as const, name: 'Highlands', tradeoff: 'Hard to invade: +20% defence. Thin soil: −2 supply.' },
 ];
 
-export const FLAG_PAIRS = [
-  { name: 'Amber and navy', a: '#E8A33D', b: '#1F3A5F' },
-  { name: 'Teal and black', a: '#3FA7A0', b: '#0E1217' },
-  { name: 'Rose and ivory', a: '#C4607A', b: '#ECE9E2' },
-  { name: 'Sky and umber', a: '#8DB8E8', b: '#5B3A1E' },
-];
-
 // ---- Factions ------------------------------------------------------------
 
 export const FACTIONS: { id: FactionId; name: string; color: string; effect: string }[] = [

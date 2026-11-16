@@ -22,6 +22,7 @@ npm run build      # typecheck, then production build to dist/
 | `src/game/content/` | Data: buildings, units, terrain, eras, rival nations, forms of government and their powers, objectives, the daily questions, and every balance number (`BALANCE`). |
 | `src/backend/` | The Supabase client and every call to it. Nothing else imports `@supabase/supabase-js`. See `docs/backend.md`. |
 | `supabase/migrations/` | Database schema and row-level security policies. |
+| `src/commerce/` | What can be owned and what it unlocks (`catalog.ts`). Cosmetics and account perks only. |
 | `src/art/` | The sprite registry. All drawing data lives here. See `docs/art.md`. |
 | `src/ui/` | React screens: Founding, Map, District (the tilted close-up), Nation, Economy, Council, Diplomacy. They read state and dispatch actions. `legacy.ts` keeps scores between games. |
 | `docs/game-model.md` | The rules in prose, with the numbers. Keep it in step with the code. |
@@ -44,6 +45,8 @@ Live design canvas (the prototypes, rendered): https://claude.ai/artifact/H8UMbB
 - Supabase is the backend and auth provider. Design new features with it in mind, but keep the game playable offline: backend calls must fail quietly and never block play.
 - Every table has row-level security. Only the anon key goes in the client; never the service-role key.
 - `src/game/` must stay free of browser and Supabase imports so it can also run in an Edge Function.
+- **The wall between money and rules.** Nothing bought may change what a nation can do. `src/game/` must not import from `src/commerce/`, and the rules never learn what an account owns; `src/game/wall.test.ts` enforces this. Purchases change appearance and account conveniences only.
+- Entitlements are written only by the server after a payment provider confirms a purchase. The client reads them and never grants them.
 - The rules never read the clock. Real-world time (the daily run) arrives as data in an action.
 - Dilemmas, buildings, units, governments, powers, objectives and nations are data, not code paths. Balance numbers go in `BALANCE`, not inline.
 - Graphics go through the sprite registry (`<Sprite id>`). No drawing data in screens.

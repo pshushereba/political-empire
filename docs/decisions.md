@@ -49,7 +49,14 @@
 
 36. **Eight standing policies.** Press freedom, church and state, immigration and military footing joined taxes, schooling, health and workers' protections. Every category of question now leaves a lasting condition, and a test keeps every dial movable in both directions.
 
+37. **Free to play, paid for by cosmetics and an optional membership. Nothing that buys an advantage.** Multiplayer needs a crowd, and the game's promise is fair competition between nations shaped by choices. Selling power would break that; selling identity does not.
+38. **The wall is structural, not a promise.** The rules engine cannot see what anyone owns, and a test fails if it ever tries.
+39. **Entitlements don't care who sold them.** One table records what an account owns, whatever the source, so web payments and app-store purchases can coexist later.
+
 ## Open questions
+
+- **Payment provider.** Stripe (cheaper, you handle sales tax) or a merchant of record such as Paddle or Lemon Squeezy (dearer, handles tax worldwide).
+- **Prices, and what the membership includes** beyond cosmetics.
 
 - **Do eight dials need more questions?** Each has at least three answers that raise it and three that lower it, out of 44 questions. With one question a turn, a given dial moves rarely. More questions, or questions that respond to the nation's current state, would make policy feel more steerable.
 

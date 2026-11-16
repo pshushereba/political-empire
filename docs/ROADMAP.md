@@ -59,6 +59,19 @@ Left over, to pick up alongside later phases:
 - **A global ranking**, likely in seasons, built on scores the server computes itself rather than ones the player's device reports.
 - **Fair-play basics**: what happens when a player abandons a game (a computer nation takes over), reporting, rate limits.
 
+## Making money
+
+The model: free to play, paid for by cosmetics and an optional membership, with nothing that buys an advantage (see `decisions.md`, `backend.md`).
+
+Done: the wall between money and rules, the entitlements table, the product catalogue, and the first cosmetics (flag designs, colours and emblems) with a Collection screen. Nothing is on sale.
+
+Still to do, in order:
+
+1. **Payments.** A checkout, and a server function that grants an entitlement when the provider confirms a purchase. Needs the Supabase project and a provider account.
+2. **Measurement.** How many players return, finish a game, and reach multiplayer.
+3. **Checking cosmetics on the server** in online games, so nobody can show a design they don't own.
+4. **More to sell**: building and unit art sets through the sprite registry, map themes, membership perks, season rewards.
+
 ## Running alongside
 
 Not tied to a phase; picked up as they become the weakest part of the game.

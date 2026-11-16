@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { economy, ERAS, formatPopulation, governmentOf, score, turnDeadline } from '../game';
 import { EffectChips, Logo, signed } from './components/common';
 import { DistrictScreen } from './screens/DistrictScreen';
+import { CollectionScreen } from './screens/CollectionScreen';
 import { EconomyScreen } from './screens/EconomyScreen';
 import { CouncilScreen } from './screens/CouncilScreen';
 import { DiplomacyScreen } from './screens/DiplomacyScreen';
@@ -150,6 +151,7 @@ export function App() {
         : section === 'diplomacy' ? <DiplomacyScreen nationId={arg} />
         : section === 'district' ? <DistrictScreen at={arg} />
         : section === 'economy' ? <EconomyScreen />
+        : section === 'collection' ? <CollectionScreen />
         : <MapScreen />}
       <Overlays />
     </div>

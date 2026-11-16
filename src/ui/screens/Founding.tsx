@@ -1,10 +1,16 @@
 import { useState } from 'react';
-import { AXES, DEFAULT_FOUNDING, FLAG_PAIRS, FOUNDING_QUESTIONS, FOUNDING_VALUES, GOVERNMENT_BY_ID, GOVERNMENTS, governmentFor, STARTING_LANDS, type FoundingChoices } from '../../game';
+import { AXES, DEFAULT_FOUNDING, FOUNDING_QUESTIONS, FOUNDING_VALUES, GOVERNMENT_BY_ID, GOVERNMENTS, governmentFor, STARTING_LANDS, type FoundingChoices } from '../../game';
 import { useEffect } from 'react';
 import { backendConfigured } from '../../backend/client';
 import { fetchRanking, type RankedScore } from '../../backend/cloud';
 import { AccountPanel } from '../components/Account';
+import { FLAG_COLOURS } from '../../art/flags';
+import { cosmeticsOf } from '../../commerce/catalog';
+import { FlagEditor } from '../components/FlagEditor';
 import { loadLegacy } from '../legacy';
+
+/** Colour pairs every player has, so each pass-and-play seat starts with a different one. */
+const FREE_PAIRS = cosmeticsOf('colours').filter((c) => c.pack === null).map((c) => FLAG_COLOURS[c.id]);
 import { Flag, Logo } from '../components/common';
 import { go, useStore } from '../store';
 
@@ -13,14 +19,8 @@ const TURN_TIMES = [{ s: 0, name: 'No limit' }, { s: 180, name: '3 minutes' }, {
 const WORLD_SIZES = [4, 6, 8, 10, 12];
 const PICKED = { borderColor: 'var(--accent)', background: 'var(--surface-amber)' };
 
-const PATTERNS = [
-  { id: 'tricolour' as const, name: 'Tricolour' },
-  { id: 'bands' as const, name: 'Bands' },
-  { id: 'canton' as const, name: 'Canton' },
-];
-
 export function Founding() {
-  const { newGame } = useStore();
+  const { newGame, owned } = useStore();
   const [c, setC] = useState<FoundingChoices>(DEFAULT_FOUNDING);
   /** How many people are playing on this device, and the nations already founded. */
   const [count, setCount] = useState(1);
@@ -34,7 +34,7 @@ export function Founding() {
   const submit = () => {
     if (last) { newGame([...done, c], { questionSeconds, turnSeconds: count > 1 ? turnSeconds : 0 }, Math.max(nations, count)); go('/'); return; }
     setDone([...done, c]);
-    const pair = FLAG_PAIRS[seatNo % FLAG_PAIRS.length];
+    const pair = FREE_PAIRS[seatNo % FREE_PAIRS.length];
     setC({ ...DEFAULT_FOUNDING, flag: { pattern: 'tricolour', a: pair.a, b: pair.b } });
     window.scrollTo(0, 0);
   };
@@ -146,21 +146,7 @@ export function Founding() {
       <aside className="right" aria-label="Preview">
         <span className="eyebrow">Your nation</span>
         <Flag flag={c.flag} width={180} />
-        <div className="col gap-8" role="group" aria-label="Flag pattern">
-          <div className="toggle-group">
-            {PATTERNS.map((p) => (
-              <button key={p.id} type="button" className="toggle" aria-pressed={c.flag.pattern === p.id} onClick={() => setC({ ...c, flag: { ...c.flag, pattern: p.id } })}>{p.name}</button>
-            ))}
-          </div>
-          <div className="row gap-8" role="group" aria-label="Flag colours">
-            {FLAG_PAIRS.map((p) => (
-              <button key={p.name} type="button" className="toggle" style={{ flexDirection: 'row', gap: 0, padding: 6, minHeight: 44, width: 64 }} aria-label={p.name} aria-pressed={c.flag.a === p.a}
-                onClick={() => setC({ ...c, flag: { ...c.flag, a: p.a, b: p.b } })}>
-                <span style={{ flex: 1, height: 28, background: p.a, borderRadius: '4px 0 0 4px' }} /><span style={{ flex: 1, height: 28, background: p.b, borderRadius: '0 4px 4px 0', border: '1px solid var(--line-strong)' }} />
-              </button>
-            ))}
-          </div>
-        </div>
+        <FlagEditor flag={c.flag} owned={owned} onChange={(flag) => setC({ ...c, flag })} />
         <div className="col gap-4">
           <h2 className="h-panel">{c.name.trim() || '[NATION NAME]'}</h2>
           <p className="muted">“{c.motto.trim() || 'By our own hands'}” · {land.name}</p>

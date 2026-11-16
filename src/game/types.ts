@@ -51,10 +51,14 @@ export interface Army extends HexRef {
   moved: number;
 }
 
+/** How a nation's flag looks. Appearance only: the rules store it and never read it. */
 export interface Flag {
-  pattern: 'tricolour' | 'bands' | 'canton';
+  /** A pattern id from the flag art. */
+  pattern: string;
   a: string;
   b: string;
+  /** An emblem id from the flag art, if any. */
+  emblem?: string;
 }
 
 export interface DecisionRecord {
@@ -277,6 +281,8 @@ export type Action =
   | { type: 'diplomacy'; nation: NationId; act: DiplomacyAct }
   | { type: 'power'; power: string }
   | { type: 'setExport'; good: Good; on: boolean }
+  /** Change how the nation's flag looks. Has no effect on play. */
+  | { type: 'setFlag'; flag: Flag }
   | { type: 'respond'; proposal: string; accept: boolean }
   /** Unseal a timed question and start its clock. */
   | { type: 'openQuestion' }

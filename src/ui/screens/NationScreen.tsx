@@ -52,7 +52,7 @@ export function NationScreen() {
     <div className="page">
       <div className="wrap">
         <header className="row gap-24" style={{ alignItems: 'flex-start' }}>
-          <Flag flag={n.flag} width={96} />
+          <a href="#/collection" aria-label="Change your flag" title="Change your flag"><Flag flag={n.flag} width={96} /></a>
           <div className="col gap-4 grow">
             <h1 className="h-page">{n.name}</h1>
             <p className="muted">{gov.name} · “{n.motto}” · Founded turn {n.foundedTurn} · Capital at {coord(n.capital)}</p>

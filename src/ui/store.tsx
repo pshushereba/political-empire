@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { activeHumans, applyAction, check, checkInBonus, createGame, reportFor, SAVE_VERSION, type Action, type Check, type Effect, type FoundingChoices, type GameSettings, type GameState, type LogEntry, type NationId } from '../game';
 import { backendConfigured, supabase } from '../backend/client';
-import { deleteSave, fetchSave, pushSave, submitScore, type CloudSave } from '../backend/cloud';
+import { deleteSave, fetchEntitlements, fetchSave, pushSave, submitScore, type CloudSave } from '../backend/cloud';
 import { recordLegacy } from './legacy';
 
 /** The player's local calendar day, YYYY-MM-DD. */
@@ -43,6 +43,8 @@ interface Store {
   welcome: { streak: number; bonus: Effect[] } | null;
   dismissWelcome: () => void;
   account: Account;
+  /** Product ids this account owns. Empty when signed out: free designs need no entry. */
+  owned: readonly string[];
 }
 
 /** The player's online account. Everything works without one; signing in adds cloud saves and the world ranking. */
@@ -57,6 +59,21 @@ export interface Account {
   /** Set when the account already holds a different game from the one in this browser. */
   conflict: CloudSave | null;
   resolveConflict: (keep: 'cloud' | 'local') => void;
+}
+
+/**
+ * Development only: pretend to own products, to work on locked designs without a
+ * payment system. Set localStorage 'political-empire.dev-owned' to a JSON list of
+ * product ids. Ignored in a production build.
+ */
+function devOwned(): string[] {
+  if (!import.meta.env.DEV) return [];
+  try {
+    const list = JSON.parse(localStorage.getItem('political-empire.dev-owned') ?? '[]');
+    return Array.isArray(list) ? list.filter((x) => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
 }
 
 /** The first player still in the game who hasn't ended the current turn. */
@@ -198,6 +215,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return () => clearTimeout(timer);
   }, [state, user, reconciled, conflict]);
 
+  // What the account owns. Only the server can grant these; the client just reads them.
+  const [owned, setOwned] = useState<readonly string[]>(devOwned);
+  useEffect(() => {
+    if (!user) { setOwned(devOwned()); return; }
+    let cancelled = false;
+    fetchEntitlements().then((list) => { if (!cancelled) setOwned([...devOwned(), ...list]); }, () => undefined);
+    return () => { cancelled = true; };
+  }, [user]);
+
   const account = useMemo<Account>(() => ({
     available: backendConfigured,
     email: user?.email ?? null,
@@ -260,7 +286,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     welcome,
     dismissWelcome: () => setWelcome(null),
     account,
-  }), [state, me, handoff, report, welcome, dispatch, account]);
+    owned,
+  }), [state, me, handoff, report, welcome, dispatch, account, owned]);
 
   return <Ctx.Provider value={store}>{children}</Ctx.Provider>;
 }

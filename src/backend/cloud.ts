@@ -59,3 +59,12 @@ export async function fetchRanking(limit = 10): Promise<RankedScore[]> {
   if (error) throw error;
   return (data ?? []) as RankedScore[];
 }
+
+/** Product ids the signed-in account owns and that have not run out. Empty when signed out or offline. */
+export async function fetchEntitlements(): Promise<string[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase.from('entitlements').select('product_id, expires_at');
+  if (error) throw error;
+  const now = Date.now();
+  return (data ?? []).filter((r) => !r.expires_at || Date.parse(r.expires_at as string) > now).map((r) => r.product_id as string);
+}

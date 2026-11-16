@@ -373,6 +373,13 @@ export function check(state: GameState, action: Action, id: NationId, now = 0): 
       return canUsePower(state, id, action.power);
     case 'setExport':
       return action.good in state.nations[id].exports ? yes : no('No such good');
+    case 'setFlag': {
+      // The rules only check the flag is well-formed. Whether the player may use a design is not their business.
+      const f = action.flag;
+      const colour = /^#[0-9a-fA-F]{6}$/;
+      const name = /^[a-z-]{1,24}$/;
+      return f && name.test(f.pattern) && colour.test(f.a) && colour.test(f.b) && (f.emblem === undefined || name.test(f.emblem)) ? yes : no('Not a valid flag');
+    }
     case 'checkIn':
       return /^\d{4}-\d{2}-\d{2}$/.test(action.day) && (!seat.checkIn.day || dayNumber(action.day) > dayNumber(seat.checkIn.day)) ? yes : no('Already checked in today');
     case 'openQuestion':
@@ -457,6 +464,9 @@ export function applyAction(state: GameState, action: Action, id: NationId, now 
       break;
     case 'setExport':
       s.nations[id].exports[action.good] = action.on;
+      break;
+    case 'setFlag':
+      s.nations[id].flag = { pattern: action.flag.pattern, a: action.flag.a, b: action.flag.b, ...(action.flag.emblem ? { emblem: action.flag.emblem } : {}) };
       break;
     case 'power':
       doPower(s, id, governmentOf(s.nations[id]).powers.find((p) => p.id === action.power)!);

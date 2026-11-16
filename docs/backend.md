@@ -20,6 +20,18 @@ Supabase provides accounts and the database. The game is **offline-first**: it a
 
 **Reconciling saves on sign-in.** Every game has an `id`. If the account has no save, the local one is uploaded. If the browser has no game, the online one is loaded. If both are the same game, the one with the higher turn wins. If they are different games, the player is asked which to keep. Nothing is uploaded until this is settled.
 
+## Entitlements
+
+`supabase/migrations/0002_entitlements.sql` adds the record of what each account owns. Players can read their own rows; there is no policy that lets a client write, so only a server function holding the service role can grant anything. `provider_ref` is unique, so a payment provider's webhook arriving twice cannot grant twice. `expires_at` is for memberships.
+
+The client reads the list on sign-in (`fetchEntitlements`) and the catalogue in `src/commerce/catalog.ts` says what each product unlocks. Signed out or offline, the player simply has the free designs.
+
+**Not built:** the payment flow. The intended shape is a checkout hosted by the provider, and an Edge Function that receives the provider's signed webhook, verifies it, and inserts the entitlement. The browser is never trusted to say a purchase happened.
+
+**For development:** in `npm run dev` only, setting localStorage `political-empire.dev-owned` to a JSON list of product ids (for example `["pack-heraldry"]`) pretends to own them. A production build ignores it.
+
+**A gap to close with online play:** flags are stored in the game state, and the rules accept any well-formed flag. Today the screens stop you choosing a design you don't own. When games run on the server, the function that applies actions should check `setFlag` against the player's entitlements.
+
 ## Not yet verified
 
 This was written without a live project. It typechecks, the game runs with and without the configuration, and an unreachable backend fails quietly. The SQL and the sign-in, save and ranking calls have **not** been run against a real Supabase project. Test those first.

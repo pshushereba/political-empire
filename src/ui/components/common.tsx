@@ -1,12 +1,15 @@
+import { FLAG_EMBLEMS, FLAG_PATTERNS, IVORY } from '../../art/flags';
 import { AXES, FACTIONS, POLICIES, type Effect, type Flag as FlagT } from '../../game';
 
+/** A nation's flag, drawn from the flag art. Unknown designs fall back to plain bands. */
 export function Flag({ flag, width = 60 }: { flag: FlagT; width?: number }) {
-  const h = (width * 2) / 3;
+  const pattern = FLAG_PATTERNS[flag.pattern] ?? FLAG_PATTERNS.bands;
+  const emblem = flag.emblem ? FLAG_EMBLEMS[flag.emblem] : null;
+  const fill = { a: flag.a, b: flag.b, ivory: IVORY };
   return (
-    <svg width={width} height={h} viewBox="0 0 60 40" aria-hidden="true" style={{ borderRadius: 4, flex: 'none', border: '1px solid rgba(236,233,226,0.25)' }}>
-      {flag.pattern === 'tricolour' && (<><rect width="20" height="40" fill={flag.a} /><rect x="20" width="20" height="40" fill="#ECE9E2" /><rect x="40" width="20" height="40" fill={flag.b} /></>)}
-      {flag.pattern === 'bands' && (<><rect width="60" height="40" fill={flag.a} /><rect y="13" width="60" height="14" fill={flag.b} /></>)}
-      {flag.pattern === 'canton' && (<><rect width="60" height="40" fill={flag.b} /><rect width="28" height="20" fill={flag.a} /></>)}
+    <svg width={width} height={(width * 2) / 3} viewBox="0 0 60 40" aria-hidden="true" style={{ borderRadius: 4, flex: 'none', border: '1px solid rgba(236,233,226,0.25)' }}>
+      {pattern.layers.map((l, i) => <path key={i} d={l.d} fill={fill[l.fill]} />)}
+      {emblem && <path d={emblem.d} transform="translate(19.2 9.2) scale(0.9)" fill={IVORY} fillRule="evenodd" stroke="#0E1217" strokeWidth="1.3" strokeLinejoin="round" />}
     </svg>
   );
 }

@@ -219,3 +219,9 @@ table.ledger td:first-child, table.ledger th:first-child { padding-left: 0; }
 .nav a { padding: 10px 11px; }
 .resources { gap: 16px; }
 .era { padding-left: 16px; }
+
+/* Flag design pickers */
+.swatch-option { position: relative; padding: 5px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface-panel); display: flex; }
+.swatch-option[aria-pressed='true'] { border-color: var(--accent); background: var(--surface-amber); }
+.swatch-option.locked > :first-child { opacity: 0.4; }
+.swatch-option .lock { position: absolute; right: 3px; bottom: 3px; color: var(--text); background: var(--bg-app); border-radius: 3px; padding: 1px; }
