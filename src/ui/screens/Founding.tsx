@@ -126,7 +126,7 @@ export function Founding() {
               ))}
             </div>
             <p className="small muted" aria-live="polite">
-              {c.answers[q.axis] === 1 ? 'A middle road: no bonus and no penalty.' : (() => { const ax = AXES.find((x) => x.id === q.axis)!; return c.answers[q.axis] === 0 ? `${ax.low}: ${ax.lowEffect.toLowerCase()}.` : `${ax.high}: ${ax.highEffect.toLowerCase()}.`; })()}
+              {c.answers[q.axis] === 1 ? 'A middle road: no bonus and no penalty.' : (() => { const ax = AXES.find((x) => x.id === q.axis)!; return c.answers[q.axis] === 0 ? `${ax.low}: ${ax.lowEffect.toLowerCase()}. The price: ${ax.lowCost.toLowerCase()}.` : `${ax.high}: ${ax.highEffect.toLowerCase()}. The price: ${ax.highCost.toLowerCase()}.`; })()}
             </p>
           </div>
         ))}

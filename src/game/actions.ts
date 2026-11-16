@@ -1,5 +1,6 @@
 import { BUILDING_BY_ID, LOTS_PER_HEX, type BuildingDef } from './content/buildings';
 import { DILEMMA_BY_ID } from './content/dilemmas';
+import { POLICY_IDS, policyTotals, type PolicyId } from './content/policies';
 import { GOVERNMENT_BY_ID, governmentFor, type PowerDef } from './content/governments';
 import { advanceObjectives, completedObjectives } from './objectives';
 import { AXIS_IDS, BALANCE, FACTION_IDS, MAX_STACK, UNIT_BY_ID, UNIT_IDS, type UnitDef } from './content/world';
@@ -20,7 +21,7 @@ const yes: Check = { ok: true };
 export function buildCost(state: GameState, id: NationId, def: BuildingDef): number {
   let owned = 0;
   for (const h of state.hexes) if (h.owner === id) owned += h.buildings.length;
-  return Math.round(def.cost * modifiers(state.nations[id]).buildCostMult * (1 + BALANCE.buildInflation * owned));
+  return Math.round(def.cost * modifiers(state.nations[id]).buildCostMult * policyTotals(state.nations[id].policies).buildCost * (1 + BALANCE.buildInflation * owned));
 }
 
 /** Does the land allow this building here, ignoring money? */
@@ -173,8 +174,9 @@ export function applyEffects(state: GameState, effects: Effect[], id: NationId):
     } else if ((FACTION_IDS as string[]).includes(e.target)) {
       const f = e.target as FactionId;
       n.factions[f] = clamp(n.factions[f] + e.delta, 0, 100);
-    } else if (e.target === 'tax') {
-      n.tax = clamp(n.tax + e.delta, -2, 2);
+    } else if ((POLICY_IDS as string[]).includes(e.target)) {
+      const p = e.target as PolicyId;
+      n.policies[p] = clamp(n.policies[p] + e.delta, -2, 2);
     } else if (e.target === 'population') {
       n.stats.population = Math.round(n.stats.population * (1 + e.delta / 100));
     } else if (e.target === 'stability') {
@@ -214,8 +216,9 @@ export function canUsePower(state: GameState, id: NationId, powerId: string): Ch
   if (!power) return no('Your form of government cannot do this');
   const ready = n.powerReady[powerId] ?? 0;
   if (ready > state.turn) return no(`Ready again on turn ${ready}`);
-  if ((power.cost?.treasury ?? 0) > n.stats.treasury) return no(`Needs ${power.cost!.treasury} treasury`);
-  if ((power.cost?.influence ?? 0) > n.stats.influence) return no(`Needs ${power.cost!.influence} influence`);
+  const needs = { treasury: power.cost?.treasury ?? 0, influence: power.cost?.influence ?? 0 };
+  if (needs.treasury > 0 && needs.treasury > n.stats.treasury) return no(`Needs ${needs.treasury} treasury`);
+  if (needs.influence > 0 && needs.influence > n.stats.influence) return no(`Needs ${needs.influence} influence`);
   if (power.special?.kind === 'units') {
     const army = armyAt(state, n.capital);
     if (army && armySize(army.units) + power.special.count > MAX_STACK) return no('No room at the capital');

@@ -1,7 +1,9 @@
 import type { Dilemma } from '../types';
 
 // The daily questions. One is drawn each turn; the whole deck is used before
-// any repeats. Axis deltas point toward Liberty / Market / Reform / Openness,
+// any repeats. An answer can have one-off effects (treasury, stability, faction
+// approval), move the nation's ideology, or move a standing policy (taxes,
+// schooling, public health, workers' protections) that then acts every turn. Axis deltas point toward Liberty / Market / Reform / Openness,
 // so "liberty −12" reads as "Authority +12". Treasury deltas scale with era.
 
 export const FIRST_DILEMMA = 'docks-strike';
@@ -16,9 +18,9 @@ export const DILEMMAS: Dilemma[] = [
     ],
     choices: [
       { title: 'Break the strike', desc: 'Send the watch to reopen the port by force.', outcome: 'The port reopens under guard. The Guild will not forget it.',
-        effects: [{ target: 'treasury', delta: 60 }, { target: 'stability', delta: -8 }, { target: 'dockworkers', delta: -30 }, { target: 'merchants', delta: 10 }, { target: 'liberty', delta: -12 }] },
+        effects: [{ target: 'welfare', delta: -1 }, { target: 'treasury', delta: 60 }, { target: 'stability', delta: -8 }, { target: 'dockworkers', delta: -30 }, { target: 'merchants', delta: 10 }, { target: 'liberty', delta: -12 }] },
       { title: 'Negotiate shorter shifts', desc: 'The state pays the difference for a season.', outcome: 'Ten-hour shifts, paid for from the treasury. The cranes move again.',
-        effects: [{ target: 'treasury', delta: -40 }, { target: 'stability', delta: 4 }, { target: 'dockworkers', delta: 15 }, { target: 'merchants', delta: -5 }, { target: 'market', delta: -6 }] },
+        effects: [{ target: 'welfare', delta: 1 }, { target: 'treasury', delta: -40 }, { target: 'stability', delta: 4 }, { target: 'dockworkers', delta: 15 }, { target: 'merchants', delta: -5 }, { target: 'market', delta: -6 }] },
       { title: 'Give the Guild an Assembly seat', desc: 'Labour gets a permanent voice in government.', outcome: 'A docker takes the oath of office. The Merchant Houses walk out of the chamber.',
         effects: [{ target: 'treasury', delta: -10 }, { target: 'stability', delta: 9 }, { target: 'dockworkers', delta: 35 }, { target: 'merchants', delta: -18 }, { target: 'liberty', delta: 10 }] },
       { title: 'Bring in foreign dockers', desc: 'Ask a friendly nation to send its own crews.', outcome: 'Foreign crews work the cranes while the Guild watches from the gates.',
@@ -35,11 +37,11 @@ export const DILEMMAS: Dilemma[] = [
     ],
     choices: [
       { title: 'Cap the price of bread', desc: 'Fix the price by law and police the bakeries.', outcome: 'Bread is cheap again. Some of it is sold out of back doors.',
-        effects: [{ target: 'stability', delta: 5 }, { target: 'dockworkers', delta: 10 }, { target: 'settlers', delta: -12 }, { target: 'market', delta: -10 }] },
+        effects: [{ target: 'welfare', delta: 1 }, { target: 'stability', delta: 5 }, { target: 'dockworkers', delta: 10 }, { target: 'settlers', delta: -12 }, { target: 'market', delta: -10 }] },
       { title: 'Buy grain abroad', desc: 'Spend from the treasury to fill the granaries.', outcome: 'Foreign grain arrives by the shipload. The price settles.',
         effects: [{ target: 'treasury', delta: -70 }, { target: 'stability', delta: 4 }, { target: 'openness', delta: 6 }, { target: 'dockworkers', delta: 5 }] },
       { title: 'Let the market settle it', desc: 'High prices will bring more grain in time.', outcome: 'Farmers plant every spare field. It is a hungry season until then.',
-        effects: [{ target: 'stability', delta: -6 }, { target: 'settlers', delta: 10 }, { target: 'merchants', delta: 6 }, { target: 'dockworkers', delta: -10 }, { target: 'market', delta: 10 }] },
+        effects: [{ target: 'welfare', delta: -1 }, { target: 'stability', delta: -6 }, { target: 'settlers', delta: 10 }, { target: 'merchants', delta: 6 }, { target: 'dockworkers', delta: -10 }, { target: 'market', delta: 10 }] },
     ],
   },
   {
@@ -119,7 +121,7 @@ export const DILEMMAS: Dilemma[] = [
       { title: 'Keep the borders open', desc: 'Let buyers choose.', outcome: 'Two mills close. The shipyards have their best year on record.',
         effects: [{ target: 'treasury', delta: 20 }, { target: 'dockworkers', delta: -12 }, { target: 'merchants', delta: 10 }, { target: 'relations', delta: 4 }, { target: 'openness', delta: 10 }, { target: 'market', delta: 5 }] },
       { title: 'Buy the mills for the state', desc: 'Run them at a loss to keep the jobs.', outcome: 'The mills fly the national flag. The ledgers are less proud.',
-        effects: [{ target: 'treasury', delta: -60 }, { target: 'dockworkers', delta: 15 }, { target: 'merchants', delta: -10 }, { target: 'market', delta: -12 }] },
+        effects: [{ target: 'welfare', delta: 1 }, { target: 'treasury', delta: -60 }, { target: 'dockworkers', delta: 15 }, { target: 'merchants', delta: -10 }, { target: 'market', delta: -12 }] },
     ],
   },
   {
@@ -163,12 +165,12 @@ export const DILEMMAS: Dilemma[] = [
       { faction: 'settlers', name: 'Young engineer', quote: 'Virtue did not drain the marsh. A pump did.' },
     ],
     choices: [
-      { title: 'Print the catechism', desc: 'Tradition first.', outcome: 'Every child can recite the founding prayers.',
-        effects: [{ target: 'clergy', delta: 14 }, { target: 'stability', delta: 4 }, { target: 'reform', delta: -12 }] },
+      { title: 'Print the catechism', desc: 'Tradition first.', outcome: 'Every child can recite the founding prayers. Fewer can do their sums.',
+        effects: [{ target: 'education', delta: -1 }, { target: 'clergy', delta: 14 }, { target: 'stability', delta: 4 }, { target: 'reform', delta: -12 }] },
       { title: 'Print the science primer', desc: 'A modern nation needs modern minds.', outcome: 'The first class of surveyors graduates within the year.',
-        effects: [{ target: 'clergy', delta: -12 }, { target: 'settlers', delta: 6 }, { target: 'influence', delta: 4 }, { target: 'reform', delta: 12 }] },
+        effects: [{ target: 'education', delta: 1 }, { target: 'clergy', delta: -12 }, { target: 'settlers', delta: 6 }, { target: 'influence', delta: 4 }, { target: 'reform', delta: 12 }] },
       { title: 'Pay for both', desc: 'Find the money somewhere.', outcome: 'Both books arrive. The children carry heavier bags.',
-        effects: [{ target: 'treasury', delta: -60 }, { target: 'clergy', delta: 5 }, { target: 'settlers', delta: 4 }] },
+        effects: [{ target: 'education', delta: 1 }, { target: 'treasury', delta: -60 }, { target: 'clergy', delta: 5 }, { target: 'settlers', delta: 4 }] },
     ],
   },
   {
@@ -184,7 +186,7 @@ export const DILEMMAS: Dilemma[] = [
       { title: 'Tax it heavily', desc: 'Let it stand, and take a share.', outcome: 'The House pays, grumbling, and passes the cost along.',
         effects: [{ target: 'treasury', delta: 80 }, { target: 'merchants', delta: -8 }, { target: 'dockworkers', delta: -4 }] },
       { title: 'Leave it be', desc: 'Success should not be punished.', outcome: 'The House thanks you publicly. The price of lamp oil rises again.',
-        effects: [{ target: 'merchants', delta: 14 }, { target: 'dockworkers', delta: -10 }, { target: 'stability', delta: -2 }, { target: 'market', delta: 12 }] },
+        effects: [{ target: 'welfare', delta: -1 }, { target: 'merchants', delta: 14 }, { target: 'dockworkers', delta: -10 }, { target: 'stability', delta: -2 }, { target: 'market', delta: 12 }] },
     ],
   },
   {
@@ -212,9 +214,9 @@ export const DILEMMAS: Dilemma[] = [
     ],
     choices: [
       { title: 'Close the port', desc: 'Quarantine the quarter, and pay the idle workers.', outcome: 'The fever burns out behind the cordon. The quarter does not forget who fed it.',
-        effects: [{ target: 'treasury', delta: -80 }, { target: 'dockworkers', delta: 12 }, { target: 'merchants', delta: -8 }, { target: 'stability', delta: 4 }, { target: 'openness', delta: -6 }] },
+        effects: [{ target: 'health', delta: 1 }, { target: 'treasury', delta: -80 }, { target: 'dockworkers', delta: 12 }, { target: 'merchants', delta: -8 }, { target: 'stability', delta: 4 }, { target: 'openness', delta: -6 }] },
       { title: 'Keep trading', desc: 'Inspect ships, but stay open.', outcome: 'Trade continues. The fever reaches two more towns before it fades.',
-        effects: [{ target: 'treasury', delta: 30 }, { target: 'population', delta: -3 }, { target: 'stability', delta: -6 }, { target: 'dockworkers', delta: -12 }, { target: 'merchants', delta: 6 }] },
+        effects: [{ target: 'health', delta: -1 }, { target: 'treasury', delta: 30 }, { target: 'population', delta: -3 }, { target: 'stability', delta: -6 }, { target: 'dockworkers', delta: -12 }, { target: 'merchants', delta: 6 }] },
       { title: 'Ask the Clergy to run hospitals', desc: 'They have the buildings and the volunteers.', outcome: 'Temple halls fill with cots. The Clergy’s standing has never been higher.',
         effects: [{ target: 'treasury', delta: -30 }, { target: 'clergy', delta: 14 }, { target: 'population', delta: -1 }, { target: 'reform', delta: -6 }] },
     ],
@@ -296,7 +298,7 @@ export const DILEMMAS: Dilemma[] = [
       { title: 'Address the nation', desc: 'Say plainly what the war is for.', outcome: 'The speech is printed in every paper. For now, the squares are calm.',
         effects: [{ target: 'stability', delta: 5 }, { target: 'influence', delta: -6 }, { target: 'liberty', delta: 4 }] },
       { title: 'Double the widows’ pension', desc: 'Pay the debt the nation owes.', outcome: 'It does not bring anyone back. It is noticed all the same.',
-        effects: [{ target: 'treasury', delta: -70 }, { target: 'stability', delta: 6 }, { target: 'settlers', delta: 8 }, { target: 'market', delta: -4 }] },
+        effects: [{ target: 'welfare', delta: 1 }, { target: 'treasury', delta: -70 }, { target: 'stability', delta: 6 }, { target: 'settlers', delta: 8 }, { target: 'market', delta: -4 }] },
     ],
   },
   {
@@ -324,8 +326,8 @@ export const DILEMMAS: Dilemma[] = [
       { faction: 'merchants', name: 'Assembly elder', quote: 'Give the vote to those with nothing, and they will vote to have everything.' },
     ],
     choices: [
-      { title: 'Votes for all adults', desc: 'One person, one vote.', outcome: 'Polling queues stretch around the block. The next Assembly looks very different.',
-        effects: [{ target: 'dockworkers', delta: 16 }, { target: 'settlers', delta: 8 }, { target: 'merchants', delta: -12 }, { target: 'clergy', delta: -6 }, { target: 'liberty', delta: 14 }, { target: 'reform', delta: 6 }] },
+      { title: 'Votes for all adults', desc: 'One person, one vote.', outcome: 'Polling queues stretch around the block, and night schools fill with new voters learning to read the ballot.',
+        effects: [{ target: 'education', delta: 1 }, { target: 'dockworkers', delta: 16 }, { target: 'settlers', delta: 8 }, { target: 'merchants', delta: -12 }, { target: 'clergy', delta: -6 }, { target: 'liberty', delta: 14 }, { target: 'reform', delta: 6 }] },
       { title: 'Votes for taxpayers', desc: 'Widen the franchise, carefully.', outcome: 'The rolls double. Both sides call it a betrayal, which suggests a fair bargain.',
         effects: [{ target: 'dockworkers', delta: 6 }, { target: 'merchants', delta: -4 }, { target: 'stability', delta: 2 }, { target: 'liberty', delta: 6 }] },
       { title: 'Reject the petition', desc: 'The constitution stands.', outcome: 'The petition is filed in the archive. Its signers remember.',
@@ -362,6 +364,119 @@ export const DILEMMAS: Dilemma[] = [
         effects: [{ target: 'influence', delta: 8 }, { target: 'relations', delta: 2 }, { target: 'openness', delta: 4 }] },
       { title: 'Let it pass', desc: 'Dinner continues.', outcome: 'The moment passes. Some at home wish it had not.',
         effects: [{ target: 'relations', delta: 3 }, { target: 'clergy', delta: -6 }, { target: 'stability', delta: -2 }] },
+    ],
+  },
+  // ---- Schooling, health and workers: these move standing policies that act every turn ----
+  {
+    id: 'university', title: 'A university for the capital', category: 'Education',
+    body: 'Scholars ask for a charter and a budget to found the nation’s first university. The Clergy already run every school there is, and the generals have other plans for the money.',
+    voices: [
+      { faction: 'clergy', name: 'Dean of the seminary', quote: 'We have taught this nation its letters for three centuries. What exactly is broken?' },
+      { faction: 'settlers', name: 'Surveyor', quote: 'I had to go abroad to learn to build a bridge. My daughter should not have to.' },
+    ],
+    choices: [
+      { title: 'Found the university', desc: 'A state charter and a state budget.', outcome: 'The first lectures are held in a borrowed warehouse. Within a year there is a waiting list.',
+        effects: [{ target: 'education', delta: 1 }, { target: 'treasury', delta: -60 }, { target: 'clergy', delta: -6 }, { target: 'reform', delta: 6 }] },
+      { title: 'Leave teaching to the Clergy', desc: 'It has worked so far.', outcome: 'The seminaries carry on as before. The scholars take ship for somewhere that wants them.',
+        effects: [{ target: 'clergy', delta: 10 }, { target: 'stability', delta: 2 }, { target: 'reform', delta: -8 }] },
+      { title: 'Close village schools to fund the army', desc: 'Soldiers first, scholars later.', outcome: 'The schoolhouses are boarded up. The children go back to the fields.',
+        effects: [{ target: 'education', delta: -1 }, { target: 'treasury', delta: 70 }, { target: 'settlers', delta: -8 }, { target: 'liberty', delta: -4 }] },
+    ],
+  },
+  {
+    id: 'child-labour', title: 'Children in the mills', category: 'Labour',
+    body: 'A factory inspector reports children of eight working twelve-hour shifts at the looms. Mill owners say families need the wages. Reformers say the nation is spending its future.',
+    voices: [
+      { faction: 'merchants', name: 'Mill owner', quote: 'Small hands, small wages, and a family that eats. Who exactly is harmed?' },
+      { faction: 'dockworkers', name: 'Weaver', quote: 'I was at that loom at nine. I cannot read the notice that says my rent has gone up.' },
+    ],
+    choices: [
+      { title: 'Ban it, and send them to school', desc: 'No child under twelve may work.', outcome: 'The looms run slower. The classrooms are suddenly full.',
+        effects: [{ target: 'education', delta: 1 }, { target: 'welfare', delta: 1 }, { target: 'merchants', delta: -12 }, { target: 'dockworkers', delta: 8 }, { target: 'reform', delta: 6 }] },
+      { title: 'Limit their hours', desc: 'Half days, and no night work.', outcome: 'A compromise that pleases nobody and helps a little.',
+        effects: [{ target: 'welfare', delta: 1 }, { target: 'merchants', delta: -5 }, { target: 'dockworkers', delta: 4 }] },
+      { title: 'Leave it to the families', desc: 'The state has no place in it.', outcome: 'The inspector’s report is filed. The looms keep their small hands.',
+        effects: [{ target: 'education', delta: -1 }, { target: 'merchants', delta: 8 }, { target: 'dockworkers', delta: -8 }, { target: 'market', delta: 6 }] },
+    ],
+  },
+  {
+    id: 'teachers-strike', title: 'The teachers walk out', category: 'Education',
+    body: 'Schoolteachers across the country have closed their classrooms over pay that has not risen in a decade. Parents are furious, though not all at the same people.',
+    voices: [
+      { faction: 'settlers', name: 'Village teacher', quote: 'I teach forty children in a barn and mend shoes at night to eat.' },
+      { faction: 'clergy', name: 'Parish priest', quote: 'Our brothers will teach for nothing but their supper. Send the strikers home.' },
+    ],
+    choices: [
+      { title: 'Raise their pay', desc: 'Teaching becomes a profession worth having.', outcome: 'The schools reopen. Better candidates start applying.',
+        effects: [{ target: 'education', delta: 1 }, { target: 'treasury', delta: -50 }, { target: 'settlers', delta: 6 }] },
+      { title: 'Replace them with the Clergy', desc: 'Cheap, willing, and already literate.', outcome: 'The brothers take over the classrooms. The syllabus gets shorter.',
+        effects: [{ target: 'education', delta: -1 }, { target: 'clergy', delta: 10 }, { target: 'settlers', delta: -6 }, { target: 'reform', delta: -6 }] },
+      { title: 'Wait them out', desc: 'They will tire before the treasury does.', outcome: 'After two months the teachers return, fewer than left.',
+        effects: [{ target: 'education', delta: -1 }, { target: 'treasury', delta: 20 }, { target: 'stability', delta: -3 }] },
+    ],
+  },
+  {
+    id: 'country-doctors', title: 'Doctors for the countryside', category: 'Health',
+    body: 'Outside the cities there is one doctor for every twenty villages. A plan on your desk would put a state clinic in every district. It is expensive, and the private physicians are against it.',
+    voices: [
+      { faction: 'settlers', name: 'Midwife', quote: 'I lose mothers to things a city doctor would cure before lunch.' },
+      { faction: 'merchants', name: 'Society physician', quote: 'Medicine for nothing is worth what you pay for it.' },
+    ],
+    choices: [
+      { title: 'A state clinic in every district', desc: 'Paid for from the treasury.', outcome: 'Young doctors ride out with state bags. The burial registers grow thinner.',
+        effects: [{ target: 'health', delta: 1 }, { target: 'treasury', delta: -60 }, { target: 'settlers', delta: 8 }, { target: 'market', delta: -6 }] },
+      { title: 'License private doctors instead', desc: 'Let the profession expand itself.', outcome: 'New practices open, in the towns that can pay for them.',
+        effects: [{ target: 'merchants', delta: 6 }, { target: 'settlers', delta: -4 }, { target: 'market', delta: 6 }] },
+      { title: 'Cut the health budget to pay debts', desc: 'The books must balance.', outcome: 'Two city hospitals close their charity wards.',
+        effects: [{ target: 'health', delta: -1 }, { target: 'treasury', delta: 70 }, { target: 'dockworkers', delta: -8 }] },
+    ],
+  },
+  {
+    id: 'bad-water', title: 'Bad water in the tenements', category: 'Health',
+    body: 'The wells in the crowded quarters are fouled, and the summer sickness has come early. Engineers want sewers. Landlords say it is not their concern.',
+    voices: [
+      { faction: 'dockworkers', name: 'Tenement mother', quote: 'We boil it, we strain it, and still the little ones sicken.' },
+      { faction: 'merchants', name: 'Landlord', quote: 'I let rooms. I did not promise them a river.' },
+    ],
+    choices: [
+      { title: 'Build sewers at public cost', desc: 'A great work under the streets.', outcome: 'The streets are dug up for a year. The next summer, the sickness does not come.',
+        effects: [{ target: 'health', delta: 1 }, { target: 'treasury', delta: -70 }, { target: 'dockworkers', delta: 8 }, { target: 'reform', delta: 4 }] },
+      { title: 'Make the landlords pay', desc: 'Clean water or no rent.', outcome: 'The landlords pay, and raise the rents to cover it.',
+        effects: [{ target: 'health', delta: 1 }, { target: 'merchants', delta: -10 }, { target: 'dockworkers', delta: 4 }, { target: 'market', delta: -6 }] },
+      { title: 'It will pass with the season', desc: 'It always has.', outcome: 'It passes. It takes a good many people with it.',
+        effects: [{ target: 'health', delta: -1 }, { target: 'population', delta: -2 }, { target: 'stability', delta: -3 }] },
+    ],
+  },
+  {
+    id: 'pensions', title: 'Old hands, empty pockets', category: 'Labour',
+    body: 'Workers too old for the docks and the mills are ending their days begging at the temple gates. A deputy proposes a state pension. Others say that is what families and charity are for.',
+    voices: [
+      { faction: 'dockworkers', name: 'Retired stevedore', quote: 'Forty years I carried this nation’s cargo. Now I carry a bowl.' },
+      { faction: 'clergy', name: 'Almoner', quote: 'We have always fed them. A pension would only teach sons to forget their fathers.' },
+    ],
+    choices: [
+      { title: 'A state pension', desc: 'A small sum for every worker past sixty.', outcome: 'The queues at the temple gates shorten. The budget does not.',
+        effects: [{ target: 'welfare', delta: 1 }, { target: 'treasury', delta: -40 }, { target: 'dockworkers', delta: 10 }, { target: 'market', delta: -8 }] },
+      { title: 'Back the mutual aid societies', desc: 'Workers insure each other, with the state’s blessing.', outcome: 'Friendly societies spring up in every trade.',
+        effects: [{ target: 'clergy', delta: 6 }, { target: 'dockworkers', delta: 4 }, { target: 'market', delta: 4 }] },
+      { title: 'It is not the state’s business', desc: 'Let them work, or let their families keep them.', outcome: 'Nothing changes, except the mood on the docks.',
+        effects: [{ target: 'welfare', delta: -1 }, { target: 'merchants', delta: 6 }, { target: 'dockworkers', delta: -12 }] },
+    ],
+  },
+  {
+    id: 'minimum-wage', title: 'A floor under wages', category: 'Labour',
+    body: 'The Guild demands a legal minimum wage. Employers warn they will hire fewer hands. Each side has brought an economist, and the economists are not speaking to each other.',
+    voices: [
+      { faction: 'dockworkers', name: 'Guild secretary', quote: 'A day’s work should buy a day’s bread. We ask for nothing cleverer than that.' },
+      { faction: 'merchants', name: 'Factory owner', quote: 'Set the price of labour by law and you will find there is less of it wanted.' },
+    ],
+    choices: [
+      { title: 'Set a minimum wage', desc: 'No one may be paid less.', outcome: 'Pay packets grow. A few workshops quietly let people go.',
+        effects: [{ target: 'welfare', delta: 1 }, { target: 'dockworkers', delta: 10 }, { target: 'merchants', delta: -8 }, { target: 'market', delta: -6 }] },
+      { title: 'Abolish the old guild wage rules', desc: 'Let every worker strike their own bargain.', outcome: 'Wages fall where they can and rise where they must.',
+        effects: [{ target: 'welfare', delta: -1 }, { target: 'merchants', delta: 10 }, { target: 'dockworkers', delta: -12 }, { target: 'market', delta: 8 }] },
+      { title: 'Leave wages alone', desc: 'Neither floor nor free-for-all.', outcome: 'Both economists declare victory.',
+        effects: [{ target: 'stability', delta: 2 }] },
     ],
   },
   // ---- Tax policy: these move the nation's tax level, which scales what every business and wage pays ----

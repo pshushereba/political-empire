@@ -1,4 +1,4 @@
-// Tax policy and the export market.
+// The export market.
 
 export type Good = 'grain' | 'timber' | 'ore' | 'goods';
 
@@ -39,27 +39,3 @@ export const MARKET = {
   driftMin: 0.8,
   driftMax: 1.25,
 };
-
-// ---- Tax policy ----------------------------------------------------------
-// One dial, −2 … +2, moved by answers to the daily question. Higher taxes take
-// more from businesses and wages, and cost approval and the Merchants' goodwill.
-
-export interface TaxLevel {
-  level: number;
-  name: string;
-  /** Multiplier on business income and on taxes from the population. */
-  revenue: number;
-  approval: number;
-  /** The Merchant Houses' approval drifts one point a turn toward this. */
-  merchants: number;
-}
-
-export const TAX_LEVELS: TaxLevel[] = [
-  { level: -2, name: 'Tax haven', revenue: 0.7, approval: 3, merchants: 80 },
-  { level: -1, name: 'Low taxes', revenue: 0.85, approval: 1.5, merchants: 65 },
-  { level: 0, name: 'Moderate taxes', revenue: 1, approval: 0, merchants: 50 },
-  { level: 1, name: 'High taxes', revenue: 1.15, approval: -1.5, merchants: 35 },
-  { level: 2, name: 'Punishing taxes', revenue: 1.3, approval: -3, merchants: 20 },
-];
-
-export const taxLevel = (level: number): TaxLevel => TAX_LEVELS[Math.max(-2, Math.min(2, Math.round(level))) + 2];

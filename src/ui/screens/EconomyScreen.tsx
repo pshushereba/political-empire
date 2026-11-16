@@ -1,8 +1,9 @@
 import { Sprite } from '../../art/Sprite';
 import {
-  BUILDING_BY_ID, buildingYield, economy, GOODS, MARKET, modifiers, ownedHexes, TAX_LEVELS, worldProducers,
+  BUILDING_BY_ID, buildingYield, economy, GOODS, MARKET, modifiers, ownedHexes, policyTotals, worldProducers,
 } from '../../game';
 import { signed } from '../components/common';
+import { PolicyCard } from '../components/PolicyCard';
 import { useGame } from '../store';
 
 /** Where the money comes from: revenue, tax policy, the nation's businesses, and the export market. */
@@ -12,6 +13,7 @@ export function EconomyScreen() {
   const eco = economy(state, me);
   const m = modifiers(n);
   const world = worldProducers(state);
+  const pol = policyTotals(n.policies);
 
   // Every finished building that earns money, grouped by kind.
   const rows = new Map<string, { count: number; income: number; bonus: number; building: number }>();
@@ -24,7 +26,7 @@ export function EconomyScreen() {
       if (b.turnsLeft > 0) { row.building++; building++; }
       else {
         const y = buildingYield(state, h, i);
-        const scale = (def.category === 'commerce' ? m.commerceMult : 1) * eco.tax.revenue;
+        const scale = (def.category === 'commerce' ? m.commerceMult : 1) * pol.business;
         row.count++;
         row.income += y.income * scale;
         row.bonus += (y.income - def.income) * scale;
@@ -46,8 +48,8 @@ export function EconomyScreen() {
 
         <dl className="grid-4">
           <div className="card col gap-4"><dt className="eyebrow">In the treasury</dt><dd className="mono" style={{ fontSize: 22 }}>{Math.round(n.stats.treasury).toLocaleString()}</dd><dd className="small muted">Available to spend now</dd></div>
-          <div className="card col gap-4"><dt className="eyebrow">Revenue per turn</dt><dd className="mono" style={{ fontSize: 22 }}>{eco.income.gross}</dd><dd className="small muted">Before the army is paid</dd></div>
-          <div className="card col gap-4"><dt className="eyebrow">Army upkeep</dt><dd className="mono" style={{ fontSize: 22 }}>−{eco.upkeep}</dd><dd className="small muted">{eco.units} units</dd></div>
+          <div className="card col gap-4"><dt className="eyebrow">Revenue per turn</dt><dd className="mono" style={{ fontSize: 22 }}>{eco.income.gross}</dd><dd className="small muted">Before the army and services are paid</dd></div>
+          <div className="card col gap-4"><dt className="eyebrow">Army and public services</dt><dd className="mono" style={{ fontSize: 22 }}>−{eco.upkeep + eco.spending}</dd><dd className="small muted">{eco.units} units · services {eco.spending >= 0 ? `cost ${eco.spending}` : `save ${-eco.spending}`}</dd></div>
           <div className="card col gap-4"><dt className="eyebrow">Left over per turn</dt><dd className={`mono ${eco.net >= 0 ? 'pos' : 'neg'}`} style={{ fontSize: 22 }}>{signed(eco.net)}</dd><dd className="small muted">Added to the treasury at the end of each turn</dd></div>
         </dl>
 
@@ -70,22 +72,8 @@ export function EconomyScreen() {
 
           <section className="col gap-16">
             <h2 className="h-section">Tax policy</h2>
-            <div className="card col">
-              <div className="row spread"><strong style={{ fontSize: 18 }}>{eco.tax.name}</strong><span className="chip">Business and wage taxes ×{eco.tax.revenue.toFixed(2)}</span></div>
-              <ol className="row gap-4" aria-label="Tax levels, lowest to highest">
-                {TAX_LEVELS.map((t) => (
-                  <li key={t.level} className="grow" aria-current={t.level === eco.tax.level ? 'true' : undefined} title={t.name}
-                    style={{ height: 10, borderRadius: 4, background: t.level === eco.tax.level ? 'var(--accent)' : 'var(--surface-raised)' }}><span className="visually-hidden">{t.name}</span></li>
-                ))}
-              </ol>
-              <div className="row spread small muted"><span>Tax haven</span><span>Punishing taxes</span></div>
-              <p className="small">
-                {eco.tax.level === 0 ? 'A middle course: no bonus and no penalty.'
-                  : eco.tax.level > 0 ? `The state takes ${Math.round((eco.tax.revenue - 1) * 100)}% more from every business and wage. It costs ${Math.abs(TAX_LEVELS[eco.tax.level + 2].approval)} approval, and the Merchant Houses’ goodwill is sinking toward ${TAX_LEVELS[eco.tax.level + 2].merchants}.`
-                  : `The state takes ${Math.round((1 - eco.tax.revenue) * 100)}% less from every business and wage. It adds ${TAX_LEVELS[eco.tax.level + 2].approval} approval, and the Merchant Houses’ goodwill is rising toward ${TAX_LEVELS[eco.tax.level + 2].merchants}.`}
-              </p>
-              <p className="small muted">You do not set this directly. It moves when the council’s daily question is about taxes, and the more businesses you own, the more each step is worth.</p>
-            </div>
+            <PolicyCard id="tax" level={n.policies.tax} />
+            <p className="small muted">You do not set this directly. It moves when the council’s daily question is about taxes. Schooling and workers’ protections also change what businesses earn: see <a href="#/nation">standing policies</a>.</p>
           </section>
         </div>
 
@@ -104,7 +92,7 @@ export function EconomyScreen() {
                       <td>{Math.round(r.income)}</td>
                     </tr>
                   ))}
-                  <tr className="total"><td>All businesses, after tax policy</td><td /><td /><td>{eco.income.businesses}</td></tr>
+                  <tr className="total"><td>All businesses, after taxes and other policies</td><td /><td /><td>{eco.income.businesses}</td></tr>
                 </tbody>
               </table>
             </div>

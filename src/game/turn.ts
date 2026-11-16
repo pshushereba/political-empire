@@ -3,9 +3,10 @@ import { BUILDING_BY_ID } from './content/buildings';
 import { DILEMMAS, DILEMMA_BY_ID } from './content/dilemmas';
 import { BALANCE, ERAS, UNIT_BY_ID, UNIT_IDS } from './content/world';
 import { baseline } from './diplomacy';
-import { clamp, economy, eraFor, governmentOf, ownedHexes } from './economy';
+import { clamp, economy, eraFor, governmentOf, ownedHexes, revoltChance } from './economy';
+import { refreshGovernment } from './actions';
 import { coord, hexAt, neighbourHexes } from './hex';
-import { taxLevel } from './content/market';
+import { POLICY_IDS, policyLevel } from './content/policies';
 import { updateMarket } from './market';
 import { armyAt, armySize, checkOutcome, transferHex } from './military';
 import { activeHumans, enemiesOf, pairKey } from './relations';
@@ -23,13 +24,17 @@ function runNation(state: GameState, id: NationId, rng: Rng): void {
   const eco = economy(state, id);
 
   n.stats.treasury += eco.net;
-  n.stats.influence += eco.influence;
+  // A nation the world ignores can lose standing, but never owes any.
+  n.stats.influence = Math.max(0, n.stats.influence + eco.influence);
   n.stats.population = Math.max(50_000, Math.round(n.stats.population * (1 + eco.growthPct / 100)));
 
-  // The Merchant Houses warm to low taxes and sour on high ones, a point a turn.
-  const wanted = taxLevel(n.tax).merchants;
-  if (n.tax > 0 && n.factions.merchants > wanted) n.factions.merchants--;
-  if (n.tax < 0 && n.factions.merchants < wanted) n.factions.merchants++;
+  // Standing policies wear on the factions they touch, a point a turn.
+  for (const p of POLICY_IDS) {
+    const d = policyLevel(p, n.policies[p]).drift;
+    if (!d) continue;
+    if (d.toward < 50 && n.factions[d.faction] > d.toward) n.factions[d.faction]--;
+    if (d.toward > 50 && n.factions[d.faction] < d.toward) n.factions[d.faction]++;
+  }
 
   // Stability drifts a fifth of the way toward its target each turn.
   const gap = eco.stabilityTarget - n.stats.stability;
@@ -63,6 +68,33 @@ function runNation(state: GameState, id: NationId, rng: Rng): void {
   if (era > n.era) {
     n.era = era;
     log(state, { kind: 'era', important: true, about: [id], text: `${n.name} entered the ${ERAS[era].name}. ${ERAS[era].note}` });
+  }
+
+  // Revolt: push a people far enough toward authority, keep them unhappy, and they rise.
+  if (rng.float() < revoltChance(state, id)) {
+    n.lastRevolt = state.turn;
+    const seized = Math.round(Math.max(0, n.stats.treasury) * BALANCE.revoltTreasuryShare);
+    n.stats.treasury -= seized;
+    n.stats.stability = clamp(n.stats.stability - BALANCE.revoltStability, 0, 100);
+    const losses: string[] = [`${seized} looted from the treasury`];
+    // A business or service is burned…
+    const targets = ownedHexes(state, id).flatMap((h) => h.buildings.map((b, i) => ({ h, b, i }))).filter((x) => x.b.turnsLeft === 0 && BUILDING_BY_ID[x.b.type].category !== 'security');
+    if (targets.length) {
+      const t = rng.pick(targets);
+      t.h.buildings.splice(t.i, 1);
+      losses.push(`the ${BUILDING_BY_ID[t.b.type].name.toLowerCase()} at ${coord(t.h)} burned`);
+    }
+    // …and part of the capital's garrison goes over to the crowd.
+    const guard = armyAt(state, n.capital);
+    if (guard && guard.owner === id && armySize(guard.units) > 1) {
+      const unit = UNIT_IDS.find((u) => guard.units[u] > 0)!;
+      guard.units[unit]--;
+      losses.push(`a unit of ${UNIT_BY_ID[unit].plural} deserted`);
+    }
+    n.axes.liberty = clamp(n.axes.liberty + BALANCE.revoltConcession, 0, 100);
+    log(state, { kind: 'unrest', important: true, about: [id], at: n.capital,
+      text: `Revolt in ${n.name}. Crowds rose against the government: ${losses.join(', ')}. Order was restored only by concessions.` });
+    refreshGovernment(state, id);
   }
 
   // Unrest: an unstable nation loses land at its edges.

@@ -19,3 +19,4 @@ export * from './log';
 export * from './worldgen';
 export * from './market';
 export * from './content/market';
+export * from './content/policies';

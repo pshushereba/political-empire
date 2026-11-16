@@ -1,4 +1,4 @@
-import { AXES, FACTIONS, type Effect, type Flag as FlagT } from '../../game';
+import { AXES, FACTIONS, POLICIES, type Effect, type Flag as FlagT } from '../../game';
 
 export function Flag({ flag, width = 60 }: { flag: FlagT; width?: number }) {
   const h = (width * 2) / 3;
@@ -24,7 +24,8 @@ export function Logo() {
 export function effectLabel(e: Effect): { text: string; good: boolean } {
   const axis = AXES.find((a) => a.id === e.target);
   if (axis) return { text: `${e.delta > 0 ? axis.high : axis.low} +${Math.abs(e.delta)}`, good: true };
-  if (e.target === 'tax') return { text: e.delta > 0 ? 'Taxes raised a level' : 'Taxes cut a level', good: true };
+  const policy = POLICIES.find((p) => p.id === e.target);
+  if (policy) return { text: e.delta > 0 ? policy.up : policy.down, good: true };
   const faction = FACTIONS.find((f) => f.id === e.target);
   const sign = e.delta > 0 ? '+' : '−';
   const n = Math.abs(e.delta);
@@ -38,7 +39,7 @@ export function EffectChips({ effects }: { effects: Effect[] }) {
     <div className="row wrap-row gap-8">
       {effects.map((e, i) => {
         const l = effectLabel(e);
-        const isAxis = e.target === 'tax' || AXES.some((a) => a.id === e.target);
+        const isAxis = POLICIES.some((p) => p.id === e.target) || AXES.some((a) => a.id === e.target);
         return <span key={i} className={`chip ${isAxis ? '' : l.good ? 'pos' : 'neg'}`}>{l.text}</span>;
       })}
     </div>

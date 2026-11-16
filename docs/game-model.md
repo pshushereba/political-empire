@@ -77,16 +77,33 @@ A world holds **4 to 12 nations** and is generated fresh for each game from a se
 
 Four axes, 0–100: Authority↔Liberty, Collective↔Market, Tradition↔Reform, Isolation↔Openness. The founding answers set them to 22 / 50 / 78; the daily question moves them. The further an axis leans, the stronger its effect (`modifiers()` in `economy.ts`). At the extreme:
 
-| Lean | Effect |
-| --- | --- |
-| Authority | Army upkeep −30%, recruitment −20% |
-| Liberty | Approval +4, influence +2 per turn |
-| Collective | Supply +25%, approval +2 |
-| Market | Business income +30% |
-| Tradition | Stability +8 |
-| Reform | Building cost −20% |
-| Isolation | Defence of your land +25% |
-| Openness | Trade pact income +60%, influence +2 per turn |
+| Lean | Benefit | Cost |
+| --- | --- | --- |
+| Authority | Army upkeep −30%, recruitment −20% | Influence −1.5 a turn; risk of revolt (below) |
+| Liberty | Approval +4, influence +2 a turn | Army upkeep +10% |
+| Collective | Supply +25%, approval +2 | Business income −20% |
+| Market | Business income +30% | Approval −3 (inequality) |
+| Tradition | Stability +8 | Buildings cost 10% more |
+| Reform | Buildings cost 20% less | Stability −5 (upheaval) |
+| Isolation | Defence of your land +25% | Trade and export income −40%, influence −1 a turn |
+| Openness | Trade and export income +60%, influence +2 a turn | Defence −10% |
+
+Every lean has a price, so no answer is free and a centrist state is a real choice rather than a missed bonus.
+
+**Revolt.** A nation with Liberty below 40 can be risen against. The chance each turn grows with how far it leans to authority and how unhappy its people are (low stability counts most, low faction approval the rest), up to 35% a turn at the extreme. Each security bureau cuts it by a quarter, up to two. A revolt loots 20% of the treasury, burns a business or service, turns one unit of the capital's garrison, costs 12 stability, and pushes the nation 5 points toward liberty. Eight turns of quiet follow. Computer-run nations are subject to it too.
+
+### Standing policies
+
+Four dials, each with five levels, moved one step at a time by answers at the Council and never set directly (`content/policies.ts`). Unlike an answer's one-off effects, a policy acts every turn until another answer moves it.
+
+| Policy | Lowest level | Highest level |
+| --- | --- | --- |
+| Taxes | Tax haven: business and wage taxes −30%, approval +3, Merchants drift to 80 | Punishing: +30%, approval −3, Merchants drift to 20 |
+| Schooling | Unschooled: business income −18%, buildings cost +15%, influence −2; saves 3 per million people | Learned: business income +15%, buildings −8%, influence +2; costs 7 per million |
+| Public health | None: population growth −1.5% a turn, stability −5; saves 3 per million | Care for all: growth +1%, approval +2; costs 7 per million |
+| Workers' protections | Sink or swim: business income +10%, approval −3, Dockworkers drift to 20 | Cradle to grave: business income −10%, approval +3, Dockworkers drift to 80; costs 5 per million |
+
+The middle level of each does nothing. Faction drift is one point a turn.
 
 Ideology also sets diplomacy: nations with similar axes drift toward friendship, different ones toward hostility.
 
@@ -116,17 +133,7 @@ Settled every turn by `economy()`.
 - **Supply** = 4 + land yields + buildings. Each million people use 8, each unit uses 1. A surplus grows the population (up to +5% a turn); a shortage shrinks it and pulls stability down.
 - **Stability** moves a fifth of the way toward a target each turn: 55, plus approval × 1.5, plus faction effects, minus 4 per war, minus 0.5 per hex beyond 20, minus supply shortage. Below 25%, border hexes can break away.
 - **Influence** (+2 a turn, more from schools, broadcast towers, embassies and ideology) pays for claiming land and for pacts.
-- **Tax policy** is one dial with five levels, moved a step at a time by tax questions at the Council (never set directly). It scales what the state takes from every business and from wages, so the more businesses a nation has, the more each step is worth.
-
-  | Level | Business and wage taxes | Approval | Merchants drift toward |
-  | --- | --- | --- | --- |
-  | Tax haven | ×0.70 | +3 | 80 |
-  | Low taxes | ×0.85 | +1.5 | 65 |
-  | Moderate taxes (start) | ×1.00 | 0 | 50 |
-  | High taxes | ×1.15 | −1.5 | 35 |
-  | Punishing taxes | ×1.30 | −3 | 20 |
-
-  The Merchant Houses' approval moves one point a turn toward the level's figure, and their approval scales all income, so high taxes pay at once and cost slowly.
+- **Standing policies** (§4) scale business income, wage taxes, building costs and growth, and some cost the treasury each turn per million people.
 - **Exports.** Farm co-operatives make grain, timber yards timber, mines ore, factories manufactured goods: one unit per building per turn. Each turn a nation sells what it makes abroad at the world price, dearest first, up to its shipping capacity: 1 by road, +3 per port terminal, +2 per trade pact. This is on top of what those buildings earn at home. Open nations sell for more (the trade pact bonus applies).
   - **World prices** start from a base (goods 9, ore 7, timber 5, grain 4), rise to 1.6× when few nations make a good and fall to 0.6× in a glut (balanced at 1.5 producers per nation), and wander up to 8% a turn within a band.
   - **Grain is kept at home by default.** Each unit sold costs 1 supply. A nation chooses which goods it exports.
@@ -240,8 +247,8 @@ interface Dilemma {
 }
 ```
 
-- One question per turn, drawn from a shuffled deck of 26 (`content/dilemmas.ts`); none repeats until all have been asked. The first is always *The Saline Docks strike*.
-- Effects change stats, faction approval, axes and (via `relations`) every rival's opinion. Axis deltas point toward Liberty / Market / Reform / Openness, so `liberty −12` displays as "Authority +12". Treasury effects grow 50% per era.
+- One question per turn, drawn from a shuffled deck of 33 (`content/dilemmas.ts`); none repeats until all have been asked. The first is always *The Saline Docks strike*.
+- Effects change stats, faction approval, axes, standing policies and (via `relations`) every rival's opinion. Axis deltas point toward Liberty / Market / Reform / Openness, so `liberty −12` displays as "Authority +12". Treasury effects grow 50% per era.
 - A choice with `requires` is locked until the stat or axis reaches its threshold.
 - To add a question, add an object to the `DILEMMAS` array. No code changes.
 

@@ -12,7 +12,7 @@ import { Rng } from './rng';
 import type { AxisId, FoundingChoices, GameSetup, GameState, Hex, HexRef, Nation } from './types';
 import { MAX_NATIONS, MIN_NATIONS, generateWorld } from './worldgen';
 
-export const SAVE_VERSION = 7;
+export const SAVE_VERSION = 8;
 
 function baseNation(partial: Pick<Nation, 'id' | 'name' | 'short' | 'motto' | 'description' | 'color' | 'flag' | 'capital' | 'startingLand' | 'axes' | 'personality'>): Nation {
   return {
@@ -27,7 +27,8 @@ function baseNation(partial: Pick<Nation, 'id' | 'name' | 'short' | 'motto' | 'd
     government: governmentFor(partial.axes),
     powerReady: {},
     tally: { battlesWon: 0, capitalsTaken: 0, powersUsed: 0 },
-    tax: 0,
+    policies: { tax: 0, education: 0, health: 0, welfare: 0 },
+    lastRevolt: -99,
     exports: Object.fromEntries(GOODS.map((g) => [g.id, g.exportedByDefault])) as Nation['exports'],
     seat: null,
   };

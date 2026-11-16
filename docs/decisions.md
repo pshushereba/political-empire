@@ -43,7 +43,13 @@
 31. **Tax policy is set by the daily question, not by a slider.** Four tax questions move a five-level dial that scales business and wage taxes. Higher taxes pay immediately and cost approval and the Merchants' goodwill over time.
 32. **An export market, kept simple.** Four goods, world prices driven by how many nations make each, and shipping capacity from ports and trade pacts. Selling is automatic; the player's choices are what to build, what to hold back, and who to sign pacts with. No stockpiles, imports or player-to-player trading yet.
 
+33. **Every category of question leaves something lasting.** Beyond ideology and faction approval, answers move four standing policies: taxes, schooling, public health and workers' protections. Each acts every turn until another answer moves it.
+34. **Every ideological lean has a cost as well as a benefit**, so extremes are trade-offs and a collectivist economy, for example, really does earn less from business.
+35. **Hard authoritarian states risk revolt**, which costs treasury, a building, troops and stability and forces concessions.
+
 ## Open questions
+
+- **Which other answers deserve a lasting dial?** Candidates: press freedom, religion's role in the state, immigration, military doctrine. Each new dial needs enough questions to move it.
 
 - **How far should trade go?** Imports (buying grain when short), stockpiles, trading directly with a chosen nation, embargoes and blockades are all natural next steps.
 

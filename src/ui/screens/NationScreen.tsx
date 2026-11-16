@@ -1,9 +1,10 @@
 import {
-  AXES, BALANCE, coord, economy, ERAS, eraProgress, FACTIONS, formatPopulation, GOVERNMENTS, governmentOf, hegemonyHexes, landCount, lean, modifiers, scaledEffects, unitCount,
+  AXES, BALANCE, coord, economy, ERAS, eraProgress, FACTIONS, formatPopulation, GOVERNMENTS, governmentOf, hegemonyHexes, landCount, POLICY_IDS, revoltChance, lean, modifiers, scaledEffects, unitCount,
   type AxisDef, type Nation,
 } from '../../game';
 import { EffectChips, Flag, signed } from '../components/common';
 import { AccountPanel } from '../components/Account';
+import { PolicyCard } from '../components/PolicyCard';
 import { useGame } from '../store';
 
 export function verdict(axis: AxisDef, value: number): string {
@@ -25,10 +26,10 @@ function doctrine(n: Nation): string[] {
   if (m.recruitMult !== 1) out.push(`Recruitment cost ${pct(m.recruitMult - 1)}`);
   if (m.buildCostMult !== 1) out.push(`Building cost ${pct(m.buildCostMult - 1)}`);
   if (m.defenceMult !== 1) out.push(`Defence of your land ${pct(m.defenceMult - 1)}`);
-  if (m.tradeMult !== 1) out.push(`Trade pact income ${pct(m.tradeMult - 1)}`);
-  if (m.approval >= 0.5) out.push(`Approval +${Math.round(m.approval)}`);
-  if (m.influence >= 0.5) out.push(`Influence +${Math.round(m.influence)} per turn`);
-  if (m.stability >= 0.5) out.push(`Stability +${Math.round(m.stability)}`);
+  if (m.tradeMult !== 1) out.push(`Trade and export income ${pct(m.tradeMult - 1)}`);
+  if (Math.abs(m.approval) >= 0.5) out.push(`Approval ${signed(Math.round(m.approval))}`);
+  if (Math.abs(m.influence) >= 0.5) out.push(`Influence ${signed(Math.round(m.influence))} per turn`);
+  if (Math.abs(m.stability) >= 0.5) out.push(`Stability ${signed(Math.round(m.stability))}`);
   if (m.incomeMult !== 1) out.push(`All income ${pct(m.incomeMult - 1)} (coast)`);
   if (m.supplyFlat) out.push(`Supply ${signed(m.supplyFlat)} (${n.startingLand === 'river' ? 'river valley' : 'highlands'})`);
   return out;
@@ -44,6 +45,8 @@ export function NationScreen() {
   const next = ERAS[n.era + 1];
   const effects = doctrine(n);
   const gov = governmentOf(n);
+  const revolt = revoltChance(state, me);
+  const authoritarian = n.axes.liberty < BALANCE.revoltBelowLiberty;
 
   return (
     <div className="page">
@@ -105,6 +108,25 @@ export function NationScreen() {
         </section>
 
         <section className="col gap-16">
+          <h2 className="h-section">Standing policies</h2>
+          <p className="small muted">Set by your answers at the Council, and in force every turn until another answer changes them.</p>
+          <div className="grid-2">{POLICY_IDS.map((p) => <PolicyCard key={p} id={p} level={n.policies[p]} />)}</div>
+        </section>
+
+        {authoritarian && (
+          <section className="card col" style={{ borderColor: revolt >= 0.05 ? 'var(--negative)' : 'var(--line-strong)' }} aria-label="Risk of revolt">
+            <div className="row spread"><h2 className="h-section">Risk of revolt</h2><strong className={`mono ${revolt >= 0.05 ? 'neg' : ''}`}>{(revolt * 100).toFixed(1)}% a turn</strong></div>
+            <p className="small">
+              A people ruled this firmly will rise if they are unhappy enough. A revolt loots {Math.round(BALANCE.revoltTreasuryShare * 100)}% of the treasury, burns a business or service, turns part of the capital’s garrison, costs {BALANCE.revoltStability} stability, and forces concessions toward liberty.
+            </p>
+            <p className="small muted">
+              {state.turn - n.lastRevolt < BALANCE.revoltCooldown ? `The last uprising was on turn ${n.lastRevolt}; the country is quiet for now. ` : ''}
+              Lower it by raising stability and faction approval, by building security bureaus (each cuts the chance by a quarter, up to two), or by governing less harshly.
+            </p>
+          </section>
+        )}
+
+        <section className="col gap-16">
           <h2 className="h-section">The books</h2>
           <div className="grid-3">
             <div className="card">
@@ -118,9 +140,10 @@ export function NationScreen() {
                 <tr><td>Exports</td><td>{eco.income.exports}</td></tr>
                 <tr><td>Stability and merchants</td><td>×{eco.income.multiplier.toFixed(2)}</td></tr>
                 <tr><td>Army upkeep ({eco.units} units)</td><td>−{eco.upkeep}</td></tr>
+                <tr><td>Public services (schooling, health, protections)</td><td>{eco.spending > 0 ? `−${eco.spending}` : eco.spending < 0 ? `+${-eco.spending}` : '0'}</td></tr>
                 <tr className="total"><td>Net</td><td className={eco.net >= 0 ? 'pos' : 'neg'}>{signed(eco.net)}</td></tr>
               </tbody></table>
-              <p className="small muted" style={{ marginTop: 8 }}>Tax policy: {eco.tax.name.toLowerCase()}. <a href="#/economy">Businesses, taxes and exports</a></p>
+              <p className="small muted" style={{ marginTop: 8 }}>Tax policy: {eco.policies.tax.name.toLowerCase()}. <a href="#/economy">Businesses, taxes and exports</a></p>
             </div>
             <div className="card">
               <h3 className="eyebrow" style={{ marginBottom: 8 }}>Supply</h3>
@@ -182,7 +205,8 @@ export function NationScreen() {
                   <span className="dot ghost" style={{ left: `${n.axesAtFounding[a.id]}%` }} />
                   <span className="dot" style={{ left: `${n.axes[a.id]}%` }} />
                 </div>
-                <span className="small muted">{lean(n.axes[a.id]) >= 0 ? a.highEffect : a.lowEffect}</span>
+                <span className="small pos">{lean(n.axes[a.id]) >= 0 ? a.highEffect : a.lowEffect}</span>
+                <span className="small neg">{lean(n.axes[a.id]) >= 0 ? a.highCost : a.lowCost}</span>
               </div>
             ))}
             <div className="card col gap-8">

@@ -11,6 +11,7 @@ Playable today, in the browser:
 - **Generated worlds** of 4 to 12 nations, on a map you can pan and zoom.
 - **The core loop**: one political question a turn; ideology decides the form of government, and government decides powers, limits and buildings; an economy of businesses, supply and stability; armies, battles and capture; diplomacy by envoy; a tilted district close-up with placement bonuses.
 - **An economy you can read**: an Economy screen with revenue by source, tax policy set by the daily question, every business and what it pays, and an export market with moving world prices.
+- **Answers that last**: standing policies for taxes, schooling, health and workers' protections; a cost for every ideological lean; revolts against harsh governments.
 - **Pace settings**: a time limit on answering the question, and on each turn.
 - **Reasons to return**: objectives, a daily run, a hall of nations.
 

@@ -81,17 +81,24 @@ export interface AxisDef {
   high: string;
   lowEffect: string;
   highEffect: string;
+  /** Every lean has a price. */
+  lowCost: string;
+  highCost: string;
 }
 
 export const AXES: AxisDef[] = [
   { id: 'liberty', low: 'Authority', high: 'Liberty',
-    lowEffect: 'Army upkeep and recruitment cost less', highEffect: 'Higher approval and more influence' },
+    lowEffect: 'Army upkeep and recruitment cost less', lowCost: 'Less influence abroad, and a risk of revolt',
+    highEffect: 'Higher approval and more influence', highCost: 'A free people costs more to keep under arms' },
   { id: 'market', low: 'Collective', high: 'Market',
-    lowEffect: 'More supply and higher approval', highEffect: 'Businesses earn more' },
+    lowEffect: 'More supply and higher approval', lowCost: 'Businesses earn less',
+    highEffect: 'Businesses earn more', highCost: 'Inequality lowers approval' },
   { id: 'reform', low: 'Tradition', high: 'Reform',
-    lowEffect: 'A steadier, more stable state', highEffect: 'Buildings cost less' },
+    lowEffect: 'A steadier, more stable state', lowCost: 'Buildings cost more',
+    highEffect: 'Buildings cost less', highCost: 'Constant change unsettles the country' },
   { id: 'openness', low: 'Isolation', high: 'Openness',
-    lowEffect: 'Your land is harder to invade', highEffect: 'Trade pacts pay more; more influence' },
+    lowEffect: 'Your land is harder to invade', lowCost: 'Exports sell for less, and less influence',
+    highEffect: 'Trade pays more; more influence', highCost: 'Open borders are easier to cross' },
 ];
 
 export const AXIS_IDS: AxisId[] = ['liberty', 'market', 'reform', 'openness'];
@@ -245,6 +252,18 @@ export const BALANCE = {
   hegemonyFloor: 0.3,
   unrestBelow: 25,
   claimBase: 8,
+  /** Revolt: a nation more authoritarian than this (Liberty below it) can be risen against. */
+  revoltBelowLiberty: 40,
+  /** Chance per turn at the extreme of authority with a thoroughly unhappy people. */
+  revoltMaxChance: 0.35,
+  /** Each finished security bureau cuts the chance by this share, up to two. */
+  revoltBureauCut: 0.25,
+  /** Turns of quiet after an uprising. */
+  revoltCooldown: 8,
+  /** What an uprising costs: share of the treasury, stability, and how far the government is pushed toward liberty. */
+  revoltTreasuryShare: 0.2,
+  revoltStability: 12,
+  revoltConcession: 5,
   /** Stability lost when a timed question runs out and the council answers for you. */
   indecision: 3,
   /** Turns an unanswered proposal between players stays open. */

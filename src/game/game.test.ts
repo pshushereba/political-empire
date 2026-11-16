@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   applyAction, armyAt, armySize, canBuild, check, createGame, DEFAULT_FOUNDING, DILEMMA_BY_ID, distance, economy,
   forecast, hexAt, key, MAX_STACK, modifiers, neighbours, ownedHexes, reachable, relation, requirementMet, stance,
-  BUILDING_BY_ID, buildCost, buildingYield, coord, governmentFor, placementBonusCount, placementEffect, score, allReady, questionDeadline, questionSealed, turnDeadline, generateWorld, hegemonyShare, priceList, type FoundingChoices, type GameState, type Action,
+  BUILDING_BY_ID, buildCost, buildingYield, coord, governmentFor, placementBonusCount, placementEffect, score, allReady, questionDeadline, questionSealed, turnDeadline, generateWorld, hegemonyShare, priceList, revoltChance, type FoundingChoices, type GameState, type Action,
 } from './index';
 
 const fresh = (over: Partial<FoundingChoices> & { seed?: number; day?: string } = {}): GameState => {
@@ -476,11 +476,11 @@ describe('taxes and trade', () => {
     let s = structuredClone(fresh());
     seat(s).dilemma = { id: 'business-levy', choice: null, openedAt: null };
     const before = economy(s, 'p1');
-    expect(before.tax.name).toBe('Moderate taxes');
+    expect(before.policies.tax.name).toBe('Moderate taxes');
     s = act(s, { type: 'decide', choice: 0 }); // raise taxes on business
     const after = economy(s, 'p1');
-    expect(s.nations.p1.tax).toBe(1);
-    expect(after.tax.revenue).toBe(1.15);
+    expect(s.nations.p1.policies.tax).toBe(1);
+    expect(after.policies.tax.name).toBe('High taxes');
     expect(after.income.businesses).toBe(Math.round(7 * 1.15)); // the one market street
     expect(after.approval).toBeLessThan(before.approval);
     // More businesses means more at stake.
@@ -490,7 +490,7 @@ describe('taxes and trade', () => {
 
   it('sours the merchants on high taxes over time', () => {
     let s = structuredClone(fresh());
-    s.nations.p1.tax = 2;
+    s.nations.p1.policies.tax = 2;
     const m0 = s.nations.p1.factions.merchants;
     s = act(s, { type: 'decide', choice: 1 });
     s = act(s, { type: 'endTurn' });
@@ -534,5 +534,83 @@ describe('taxes and trade', () => {
     const base = priceList(s, s.market.drift).ore;
     for (const h of s.hexes) if (h.owner) h.buildings = [{ type: 'mine', turnsLeft: 0 }];
     expect(priceList(s, s.market.drift).ore).toBeLessThan(base);
+  });
+});
+
+describe('answers that last', () => {
+  it('leaves a poorly schooled nation poorer, slower to build and ignored abroad', () => {
+    const taught = structuredClone(fresh());
+    const ignorant = structuredClone(taught);
+    ignorant.nations.p1.policies.education = -2;
+    const a = economy(taught, 'p1');
+    const b = economy(ignorant, 'p1');
+    expect(b.policies.education.name).toBe('Unschooled');
+    expect(b.income.businesses).toBeLessThan(a.income.businesses);
+    expect(b.influence).toBe(a.influence - 2);
+    expect(buildCost(ignorant, 'p1', BUILDING_BY_ID.clinic)).toBeGreaterThan(buildCost(taught, 'p1', BUILDING_BY_ID.clinic));
+    expect(b.spending).toBeLessThan(0); // it is, at least, cheap
+  });
+
+  it('moves schooling when an education question is answered', () => {
+    let s = structuredClone(fresh());
+    seat(s).dilemma = { id: 'teachers-strike', choice: null, openedAt: null };
+    s = act(s, { type: 'decide', choice: 0 }); // raise their pay
+    expect(s.nations.p1.policies.education).toBe(1);
+    expect(economy(s, 'p1').spending).toBeGreaterThan(0);
+  });
+
+  it('makes a sick nation grow slowly and a protected workforce cost its employers', () => {
+    const s = structuredClone(fresh());
+    const base = economy(s, 'p1');
+    s.nations.p1.policies.health = -2;
+    expect(economy(s, 'p1').growthPct).toBeLessThan(base.growthPct);
+    expect(economy(s, 'p1').stabilityTarget).toBe(base.stabilityTarget - 5);
+    s.nations.p1.policies.health = 0;
+    s.nations.p1.policies.welfare = 2;
+    const kind = economy(s, 'p1');
+    expect(kind.income.businesses).toBeLessThan(base.income.businesses);
+    expect(kind.approval).toBe(base.approval + 3);
+  });
+
+  it('charges every ideological lean a price', () => {
+    const lean = (answers: FoundingChoices['answers']) => modifiers(fresh({ answers }).nations.p1);
+    const mid = { liberty: 1, market: 1, reform: 1, openness: 1 };
+    expect(lean({ ...mid, market: 0 }).commerceMult).toBeLessThan(1); // collective: businesses earn less
+    expect(lean({ ...mid, market: 0 }).supplyMult).toBeGreaterThan(1);
+    expect(lean({ ...mid, market: 2 }).approval).toBeLessThan(0); // market: inequality
+    expect(lean({ ...mid, reform: 2 }).stability).toBeLessThan(0); // reform: upheaval
+    expect(lean({ ...mid, reform: 0 }).buildCostMult).toBeGreaterThan(1); // tradition: slow to build
+    expect(lean({ ...mid, openness: 0 }).tradeMult).toBeLessThan(1); // isolation: poor exports
+    expect(lean({ ...mid, openness: 2 }).defenceMult).toBeLessThan(1); // openness: open borders
+  });
+
+  it('puts an unhappy authoritarian state at risk of revolt, and makes revolt hurt', () => {
+    const free = fresh({ answers: { liberty: 2, market: 1, reform: 1, openness: 1 } });
+    expect(revoltChance(free, 'p1')).toBe(0);
+    let s = structuredClone(fresh({ answers: { liberty: 0, market: 1, reform: 1, openness: 1 } }));
+    const calm = revoltChance(s, 'p1');
+    s.nations.p1.stats.stability = 15;
+    const angry = revoltChance(s, 'p1');
+    expect(angry).toBeGreaterThan(calm);
+    // A security bureau keeps a lid on it.
+    hexAt(s, s.nations.p1.capital).buildings.push({ type: 'police', turnsLeft: 0 });
+    expect(revoltChance(s, 'p1')).toBeLessThan(angry);
+    hexAt(s, s.nations.p1.capital).buildings.pop();
+    // Play on until the people rise.
+    s.nations.p1.axes.liberty = 5;
+    s.nations.p1.stats.treasury = 1000;
+    let revolt = null;
+    for (let t = 0; t < 80 && !revolt; t++) {
+      s.nations.p1.stats.stability = 10;
+      const liberty = s.nations.p1.axes.liberty;
+      const treasury = s.nations.p1.stats.treasury;
+      s = applyAction(s, { type: 'decide', choice: 1 }, 'p1');
+      s = applyAction(s, { type: 'endTurn' }, 'p1');
+      revolt = s.log.find((l) => l.kind === 'unrest' && l.text.startsWith('Revolt')) ?? null;
+      if (revolt) expect(s.nations.p1.stats.treasury).toBeLessThan(treasury);
+      if (!revolt) s.nations.p1.axes.liberty = Math.min(5, liberty);
+    }
+    expect(revolt).not.toBeNull();
+    expect(revoltChance(s, 'p1')).toBe(0); // a spell of quiet follows
   });
 });

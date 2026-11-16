@@ -1,4 +1,5 @@
 import type { Good } from './content/market';
+import type { PolicyId } from './content/policies';
 
 // Core data model. Everything in src/game is UI-free and pure:
 // functions take a GameState and return a new one.
@@ -95,8 +96,10 @@ export interface Nation {
   /** Power id → first turn it can be used again. */
   powerReady: Record<string, number>;
   tally: { battlesWon: number; capitalsTaken: number; powersUsed: number };
-  /** Tax policy, −2 (tax haven) … +2 (punishing). Moved by the daily question. */
-  tax: number;
+  /** Standing policies, each −2 … +2. Moved by the daily question. */
+  policies: Record<PolicyId, number>;
+  /** Turn of the last uprising against an authoritarian government. */
+  lastRevolt: number;
   /** Which goods the nation sells abroad. */
   exports: Record<Good, boolean>;
   /** Present when a person runs this nation; null when the computer does. */
@@ -152,7 +155,7 @@ export interface Envoy extends HexRef {
 
 export interface Effect {
   /** A stat, faction or axis id. Axis deltas are toward Liberty / Market / Reform / Openness. */
-  target: StatId | FactionId | AxisId | 'relations' | 'tax';
+  target: StatId | FactionId | AxisId | PolicyId | 'relations';
   delta: number;
 }
 
