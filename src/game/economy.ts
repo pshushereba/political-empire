@@ -136,7 +136,7 @@ export function economy(state: GameState, id: NationId): Economy {
     const rel = state.relations[pairKey(id, other)];
     if (rel.tradePact) trade += BALANCE.tradePactIncome * m.tradeMult;
     if (rel.war) wars++;
-    if (rel.embassy && id === state.playerId) influence += 1;
+    if (rel.embassy.includes(id)) influence += 1;
   }
 
   const millions = n.stats.population / 1_000_000;

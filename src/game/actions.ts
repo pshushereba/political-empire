@@ -3,13 +3,13 @@ import { DILEMMA_BY_ID } from './content/dilemmas';
 import { GOVERNMENT_BY_ID, governmentFor, type PowerDef } from './content/governments';
 import { advanceObjectives, completedObjectives } from './objectives';
 import { AXIS_IDS, BALANCE, FACTION_IDS, MAX_STACK, UNIT_BY_ID, UNIT_IDS, type UnitDef } from './content/world';
-import { canDiplomacy, doDiplomacy, shiftRelation } from './diplomacy';
+import { canDiplomacy, canRespond, doDiplomacy, doRespond, shiftRelation } from './diplomacy';
 import { clamp, governmentOf, hasFinished, modifiers, ownedHexes } from './economy';
 import { distance, hexAt, key, neighbourHexes, same } from './hex';
 import { armyAt, armySize, checkOutcome, executeMove, noUnits, reachable } from './military';
-import { atWar } from './relations';
+import { activeHumans, atWar } from './relations';
 import { Rng } from './rng';
-import { endTurn } from './turn';
+import { allReady, resolveTurn } from './turn';
 import type { Action, AxisId, Check, Effect, FactionId, GameState, Hex, HexRef, NationId, UnitCounts, UnitId } from './types';
 
 const no = (reason: string): Check => ({ ok: false, reason });
@@ -114,16 +114,19 @@ export function doClaim(state: GameState, id: NationId, hex: Hex): void {
 
 // ---- Envoy -----------------------------------------------------------------
 
-export function envoyTravelTurns(state: GameState, to: HexRef): number {
-  return Math.ceil(distance(state.envoy, to) / 2);
+export function envoyTravelTurns(state: GameState, id: NationId, to: HexRef): number {
+  const envoy = state.nations[id].seat?.envoy;
+  return envoy ? Math.ceil(distance(envoy, to) / 2) : 0;
 }
 
-export function canMoveEnvoy(state: GameState, to: HexRef): Check {
+export function canMoveEnvoy(state: GameState, id: NationId, to: HexRef): Check {
+  const envoy = state.nations[id].seat?.envoy;
+  if (!envoy) return no('No envoy');
   const hex = hexAt(state, to);
   if (hex.terrain === 'sea') return no('Envoys cannot cross open sea');
-  if (state.envoy.dest) return no(`Your envoy is travelling (arrives turn ${state.envoy.arrivesTurn})`);
-  if (same(state.envoy, to)) return no('Your envoy is here');
-  if (hex.owner && atWar(state, state.playerId, hex.owner)) return no('You are at war with them');
+  if (envoy.dest) return no(`Your envoy is travelling (arrives turn ${envoy.arrivesTurn})`);
+  if (same(envoy, to)) return no('Your envoy is here');
+  if (hex.owner && atWar(state, id, hex.owner)) return no('You are at war with them');
   return yes;
 }
 
@@ -147,19 +150,19 @@ export function canMoveArmy(state: GameState, id: NationId, armyId: number, to: 
 
 // ---- The daily question ----------------------------------------------------
 
-export function requirementMet(state: GameState, req: NonNullable<import('./types').DilemmaChoice['requires']>): boolean {
-  const n = state.nations[state.playerId];
+export function requirementMet(state: GameState, id: NationId, req: NonNullable<import('./types').DilemmaChoice['requires']>): boolean {
+  const n = state.nations[id];
   const value = (AXIS_IDS as string[]).includes(req.target) ? n.axes[req.target as AxisId] : n.stats[req.target as keyof typeof n.stats];
   return (req.min === undefined || value >= req.min) && (req.max === undefined || value <= req.max);
 }
 
 /** Treasury swings grow with the nation so they stay meaningful. */
-export function scaledEffects(state: GameState, effects: Effect[], id: NationId = state.playerId): Effect[] {
+export function scaledEffects(state: GameState, effects: Effect[], id: NationId): Effect[] {
   const era = state.nations[id].era;
   return effects.map((e) => (e.target === 'treasury' ? { ...e, delta: Math.round(e.delta * (1 + 0.5 * era)) } : e));
 }
 
-export function applyEffects(state: GameState, effects: Effect[], id: NationId = state.playerId): void {
+export function applyEffects(state: GameState, effects: Effect[], id: NationId): void {
   const n = state.nations[id];
   for (const e of effects) {
     if (e.target === 'relations') {
@@ -185,8 +188,8 @@ export function applyEffects(state: GameState, effects: Effect[], id: NationId =
 // ---- Government and its powers ---------------------------------------------
 
 /** The government a set of effects would leave the player with. */
-export function governmentAfter(state: GameState, effects: Effect[]): string {
-  const axes = { ...state.nations[state.playerId].axes };
+export function governmentAfter(state: GameState, id: NationId, effects: Effect[]): string {
+  const axes = { ...state.nations[id].axes };
   for (const e of effects) if ((AXIS_IDS as string[]).includes(e.target)) axes[e.target as AxisId] = clamp(axes[e.target as AxisId] + e.delta, 0, 100);
   return governmentFor(axes);
 }
@@ -199,7 +202,7 @@ export function refreshGovernment(state: GameState, id: NationId): void {
   const before = GOVERNMENT_BY_ID[n.government as keyof typeof GOVERNMENT_BY_ID].name;
   n.government = next;
   n.stats.stability = clamp(n.stats.stability - BALANCE.upheaval, 0, 100);
-  state.log.push({ turn: state.turn, kind: 'government', important: true,
+  state.log.push({ turn: state.turn, kind: 'government', important: true, about: [id],
     text: `${n.name} is no longer a ${before.toLowerCase()}. It is now a ${GOVERNMENT_BY_ID[next].name.toLowerCase()}: new powers, new limits. The upheaval cost ${BALANCE.upheaval} stability.` });
 }
 
@@ -238,7 +241,7 @@ export function doPower(state: GameState, id: NationId, power: PowerDef): void {
   }
   n.powerReady[power.id] = state.turn + power.cooldown;
   n.tally.powersUsed++;
-  if (id === state.playerId) state.log.push({ turn: state.turn, kind: 'government', text: `You used a power of the state: ${power.name}.` });
+  if (n.seat) state.log.push({ turn: state.turn, kind: 'government', to: id, text: `You used a power of the state: ${power.name}.` });
   refreshGovernment(state, id);
 }
 
@@ -249,31 +252,36 @@ const dayNumber = (day: string): number => {
   return Math.round(Date.UTC(y, m - 1, d) / 86_400_000);
 };
 
-/** What the player gets for returning on a new calendar day. Grows over a five-day run. */
-export function checkInBonus(state: GameState, streak: number): Effect[] {
+/** What a player gets for returning on a new calendar day. Grows over a five-day run. */
+export function checkInBonus(state: GameState, id: NationId, streak: number): Effect[] {
   const tier = Math.min(streak, BALANCE.streakCap);
-  return scaledEffects(state, [{ target: 'treasury', delta: BALANCE.streakTreasury * tier }, { target: 'influence', delta: BALANCE.streakInfluence * tier }]);
+  return scaledEffects(state, [{ target: 'treasury', delta: BALANCE.streakTreasury * tier }, { target: 'influence', delta: BALANCE.streakInfluence * tier }], id);
 }
 
 function payObjectives(state: GameState): void {
-  // Paying a reward can complete another objective, so repeat until nothing changes.
-  for (let guard = 0; guard < 10; guard++) {
-    const done = completedObjectives(state);
-    if (!done.length) return;
-    for (const d of done) {
-      applyEffects(state, d.reward);
-      state.log.push({ turn: state.turn, kind: 'objective', important: true, text: `Objective complete: ${d.title}.` });
+  for (const id of activeHumans(state)) {
+    // Paying a reward can complete another objective, so repeat until nothing changes.
+    for (let guard = 0; guard < 10; guard++) {
+      const done = completedObjectives(state, id);
+      if (!done.length) break;
+      for (const d of done) {
+        applyEffects(state, d.reward, id);
+        state.log.push({ turn: state.turn, kind: 'objective', to: id, important: true, text: `Objective complete: ${d.title}.` });
+      }
+      advanceObjectives(state, id, done);
     }
-    advanceObjectives(state, done);
   }
 }
 
 // ---- Reducer ---------------------------------------------------------------
 
-/** Why the player can't do this right now, or ok. */
-export function check(state: GameState, action: Action): Check {
+/** Why the nation `id` can't do this right now, or ok. `id` must be run by a person. */
+export function check(state: GameState, action: Action, id: NationId): Check {
   if (state.status !== 'playing') return no('The game is over');
-  const id = state.playerId;
+  const seat = state.nations[id]?.seat;
+  if (!seat) return no('Not a player’s nation');
+  if (!state.nations[id].alive) return no('Your nation has fallen');
+  if (seat.ready) return no('You have ended your turn. Waiting for the other players');
   switch (action.type) {
     case 'build': {
       const def = BUILDING_BY_ID[action.building];
@@ -294,31 +302,37 @@ export function check(state: GameState, action: Action): Check {
     case 'claimHex':
       return canClaim(state, id, hexAt(state, action.at));
     case 'moveEnvoy':
-      return canMoveEnvoy(state, action.to);
+      return canMoveEnvoy(state, id, action.to);
     case 'decide': {
-      if (!state.dilemma) return no('Nothing to decide');
-      if (state.dilemma.choice !== null) return no('Already decided today');
-      const choice = DILEMMA_BY_ID[state.dilemma.id].choices[action.choice];
+      if (!seat.dilemma) return no('Nothing to decide');
+      if (seat.dilemma.choice !== null) return no('Already decided today');
+      const choice = DILEMMA_BY_ID[seat.dilemma.id].choices[action.choice];
       if (!choice) return no('No such choice');
-      if (choice.requires && !requirementMet(state, choice.requires)) return no(choice.requires.label);
+      if (choice.requires && !requirementMet(state, id, choice.requires)) return no(choice.requires.label);
       return yes;
     }
     case 'diplomacy':
-      return canDiplomacy(state, action.nation, action.act);
+      return canDiplomacy(state, id, action.nation, action.act);
+    case 'respond':
+      return canRespond(state, id, action.proposal, action.accept);
     case 'power':
       return canUsePower(state, id, action.power);
     case 'checkIn':
-      return /^\d{4}-\d{2}-\d{2}$/.test(action.day) && (!state.checkIn.day || dayNumber(action.day) > dayNumber(state.checkIn.day)) ? yes : no('Already checked in today');
+      return /^\d{4}-\d{2}-\d{2}$/.test(action.day) && (!seat.checkIn.day || dayNumber(action.day) > dayNumber(seat.checkIn.day)) ? yes : no('Already checked in today');
     case 'endTurn':
-      return state.dilemma && state.dilemma.choice === null ? no('Answer today’s question first') : yes;
+      return seat.dilemma && seat.dilemma.choice === null ? no('Answer today’s question first') : yes;
   }
 }
 
-/** The one way state changes. Returns the same object if the action isn't allowed. */
-export function applyAction(state: GameState, action: Action): GameState {
-  if (!check(state, action).ok) return state;
+/**
+ * The one way state changes: nation `id` takes an action. Returns the same
+ * object if the action isn't allowed. The same function serves a solo game in
+ * the browser and a shared game on a server, where `id` comes from the session.
+ */
+export function applyAction(state: GameState, action: Action, id: NationId): GameState {
+  if (!check(state, action, id).ok) return state;
   const s: GameState = structuredClone(state);
-  const id = s.playerId;
+  const seat = s.nations[id].seat!;
   const rng = new Rng(s.rng);
   switch (action.type) {
     case 'build':
@@ -347,37 +361,42 @@ export function applyAction(state: GameState, action: Action): GameState {
       doClaim(s, id, hexAt(s, action.at));
       break;
     case 'moveEnvoy':
-      s.envoy.dest = { c: action.to.c, r: action.to.r };
-      s.envoy.arrivesTurn = s.turn + envoyTravelTurns(s, action.to);
+      seat.envoy.arrivesTurn = s.turn + envoyTravelTurns(s, id, action.to);
+      seat.envoy.dest = { c: action.to.c, r: action.to.r };
       break;
     case 'decide': {
-      const dilemma = DILEMMA_BY_ID[s.dilemma!.id];
+      const dilemma = DILEMMA_BY_ID[seat.dilemma!.id];
       const choice = dilemma.choices[action.choice];
-      const effects = scaledEffects(s, choice.effects);
-      applyEffects(s, effects);
-      s.dilemma!.choice = action.choice;
+      const effects = scaledEffects(s, choice.effects, id);
+      applyEffects(s, effects, id);
+      seat.dilemma!.choice = action.choice;
       s.nations[id].decisions.push({ turn: s.turn, dilemmaId: dilemma.id, title: dilemma.title, choice: choice.title, effects });
       refreshGovernment(s, id);
       break;
     }
     case 'diplomacy':
-      doDiplomacy(s, action.nation, action.act);
+      doDiplomacy(s, id, action.nation, action.act);
+      break;
+    case 'respond':
+      doRespond(s, id, action.proposal, action.accept);
       break;
     case 'power':
       doPower(s, id, governmentOf(s.nations[id]).powers.find((p) => p.id === action.power)!);
       break;
     case 'checkIn': {
-      const first = !s.checkIn.day;
-      const streak = !first && dayNumber(action.day) - dayNumber(s.checkIn.day) === 1 ? s.checkIn.streak + 1 : 1;
-      s.checkIn = { day: action.day, streak };
+      const first = !seat.checkIn.day;
+      const streak = !first && dayNumber(action.day) - dayNumber(seat.checkIn.day) === 1 ? seat.checkIn.streak + 1 : 1;
+      seat.checkIn = { day: action.day, streak };
       if (!first) {
-        applyEffects(s, checkInBonus(s, streak));
-        s.log.push({ turn: s.turn, kind: 'info', text: `Welcome back: day ${streak} of your run.` });
+        applyEffects(s, checkInBonus(s, id, streak), id);
+        s.log.push({ turn: s.turn, kind: 'info', to: id, text: `Welcome back: day ${streak} of your run.` });
       }
       break;
     }
     case 'endTurn':
-      endTurn(s, rng);
+      // The world moves on only when everyone still playing is ready.
+      seat.ready = true;
+      if (allReady(s)) resolveTurn(s, rng);
       break;
   }
   if (s.status === 'playing') payObjectives(s);

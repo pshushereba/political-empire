@@ -1,7 +1,7 @@
 import { useRef, type KeyboardEvent } from 'react';
 import { SpriteG } from '../../art/Sprite';
 import { TERRAIN_MARKS } from '../../art/sprites';
-import { armySize, centre, corners, key, neighbours, relation, stance, TERRAIN, type GameState, type Hex, type HexRef, type MoveKind } from '../../game';
+import { armySize, centre, corners, key, neighbours, relation, stance, TERRAIN, type GameState, type Hex, type HexRef, type MoveKind, type NationId } from '../../game';
 
 const R = 38;
 const W = Math.sqrt(3) * R;
@@ -12,17 +12,17 @@ const HIGHLIGHT: Record<MoveKind, { stroke: string; dash?: string; word: string 
   attack: { stroke: '#FF8A6B', word: 'your army can attack here' },
 };
 
-function hexLabel(state: GameState, h: Hex, highlight?: MoveKind): string {
+function hexLabel(state: GameState, me: NationId, h: Hex, highlight?: MoveKind): string {
   const parts = [TERRAIN[h.terrain].name];
   if (h.terrain === 'sea') parts.push('open sea');
   else if (!h.owner) parts.push('unclaimed');
   else {
     const n = state.nations[h.owner];
-    parts.push(h.owner === state.playerId ? `${n.name}, your land` : `${n.name}, ${stance(relation(state, state.playerId, h.owner)).toLowerCase()}`);
+    parts.push(h.owner === me ? `${n.name}, your land` : `${n.name}, ${stance(relation(state, me, h.owner)).toLowerCase()}`);
     if (h.capitalOf === h.owner) parts.push('capital');
   }
   const army = state.armies.find((a) => a.c === h.c && a.r === h.r);
-  if (army) parts.push(`${armySize(army.units)} ${army.owner === state.playerId ? 'of your' : 'enemy'} units`);
+  if (army) parts.push(`${armySize(army.units)} ${army.owner === me ? 'of your' : 'enemy'} units`);
   if (h.buildings.length) parts.push(`${h.buildings.length} building${h.buildings.length > 1 ? 's' : ''}`);
   if (highlight) parts.push(HIGHLIGHT[highlight].word);
   return parts.join(', ');
@@ -30,6 +30,8 @@ function hexLabel(state: GameState, h: Hex, highlight?: MoveKind): string {
 
 interface Props {
   state: GameState;
+  /** The nation whose view this is. */
+  me: NationId;
   selected: HexRef;
   target: HexRef | null;
   highlights: Map<string, { kind: MoveKind }>;
@@ -37,11 +39,12 @@ interface Props {
 }
 
 /** The world map. One SVG; every hex is a keyboard-reachable button with a full label. */
-export function HexMap({ state, selected, target, highlights, onPick }: Props) {
+export function HexMap({ state, me, selected, target, highlights, onPick }: Props) {
   const ref = useRef<SVGSVGElement>(null);
   const width = state.cols * W + W / 2;
   const height = (state.rows - 1) * 1.5 * R + 2 * R;
-  const player = state.playerId;
+  const player = me;
+  const envoy = state.nations[me].seat!.envoy;
 
   const onKey = (e: KeyboardEvent, h: Hex) => {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -70,8 +73,8 @@ export function HexMap({ state, selected, target, highlights, onPick }: Props) {
     }
   };
 
-  const envoyAt = centre(state.envoy, R);
-  const envoyDest = state.envoy.dest ? centre(state.envoy.dest, R) : null;
+  const envoyAt = centre(envoy, R);
+  const envoyDest = envoy.dest ? centre(envoy.dest, R) : null;
   const selAt = centre(selected, R);
   const targetAt = target ? centre(target, R) : null;
 
@@ -89,7 +92,7 @@ export function HexMap({ state, selected, target, highlights, onPick }: Props) {
         const army = state.armies.find((a) => a.c === h.c && a.r === h.r);
         return (
           <g key={key(h)} className="hex" role="button" tabIndex={isSel ? 0 : -1} data-hex={key(h)}
-            aria-label={hexLabel(state, h, hl?.kind)} aria-pressed={isSel}
+            aria-label={hexLabel(state, me, h, hl?.kind)} aria-pressed={isSel}
             onClick={() => onPick(h)} onKeyDown={(e) => onKey(e, h)}>
             <polygon points={corners(x, y, R - 1.5)} fill="#0B0F14" />
             <polygon className="fill" points={corners(x, y, R - 1.5)} fill={fill} fillOpacity={opacity} />

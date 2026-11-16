@@ -93,6 +93,31 @@ export interface Nation {
   /** Power id → first turn it can be used again. */
   powerReady: Record<string, number>;
   tally: { battlesWon: number; capitalsTaken: number; powersUsed: number };
+  /** Present when a person runs this nation; null when the computer does. */
+  seat: Seat | null;
+}
+
+/** Everything that belongs to the person playing a nation, rather than to the nation itself. */
+export interface Seat {
+  envoy: Envoy;
+  /** Today's question. `choice` is null until the player decides. */
+  dilemma: { id: string; choice: number | null } | null;
+  /** Dilemma ids not yet drawn in this cycle. */
+  deck: string[];
+  objectives: { active: string[]; done: string[] };
+  /** Real-world visits: the last calendar day played and the run of consecutive days. */
+  checkIn: { day: string; streak: number };
+  /** Has ended the current turn and is waiting for the other players. */
+  ready: boolean;
+}
+
+/** An offer from one human-run nation to another, waiting for an answer. */
+export interface Proposal {
+  id: string;
+  from: NationId;
+  to: NationId;
+  act: 'trade' | 'pact' | 'peace';
+  turn: number;
 }
 
 export interface Relation {
@@ -101,14 +126,14 @@ export interface Relation {
   war: boolean;
   warSince: number;
   tradePact: boolean;
-  /** The player has an embassy with this nation. */
-  embassy: boolean;
+  /** Nations of this pair that keep an embassy with the other. */
+  embassy: NationId[];
   /** Non-aggression pact holds through this turn. 0 = none. */
   napUntil: number;
-  /** Turn of the player's last envoy action here (one per turn). */
-  lastActionTurn: number;
-  /** Turn the last peace offer was refused. */
-  peaceRefusedTurn: number;
+  /** Per nation: turn of its last envoy action toward the other (one per turn). */
+  lastActionTurn: Record<NationId, number>;
+  /** Per nation: turn its last peace offer was refused. */
+  peaceRefusedTurn: Record<NationId, number>;
 }
 
 export interface Envoy extends HexRef {
@@ -155,8 +180,12 @@ export interface LogEntry {
   turn: number;
   kind: LogKind;
   text: string;
-  /** Shown more prominently in the turn report. */
+  /** Shown more prominently in the turn report, to the nations it concerns. */
   important?: boolean;
+  /** Private: only this nation sees it. */
+  to?: NationId;
+  /** The nations it concerns. If set, it is only `important` to them. */
+  about?: NationId[];
   at?: HexRef;
 }
 
@@ -167,7 +196,8 @@ export interface GameState {
   turn: number;
   /** Seeded RNG state, so the rules stay pure. */
   rng: number;
-  playerId: NationId;
+  /** Nations run by people, in turn order. Every other nation is run by the computer. */
+  humans: NationId[];
   cols: number;
   rows: number;
   /** Row-major: index = r * cols + c. */
@@ -178,17 +208,12 @@ export interface GameState {
   nextArmyId: number;
   /** Keyed by pairKey(a, b). */
   relations: Record<string, Relation>;
-  envoy: Envoy;
-  /** Today's question. `choice` is null until the player decides. */
-  dilemma: { id: string; choice: number | null } | null;
-  /** Dilemma ids not yet drawn in this cycle. */
-  deck: string[];
-  /** The player's current and completed objectives. */
-  objectives: { active: string[]; done: string[] };
-  /** Real-world visits: the last calendar day played and the run of consecutive days. */
-  checkIn: { day: string; streak: number };
+  /** Offers between human-run nations that are waiting for an answer. */
+  proposals: Proposal[];
   log: LogEntry[];
-  status: 'playing' | 'won' | 'lost';
+  status: 'playing' | 'over';
+  /** Set when the game is over. Null if every human-run nation fell. */
+  winner: NationId | null;
   outcome: string;
 }
 
@@ -199,10 +224,15 @@ export interface FoundingChoices {
   answers: Record<AxisId, number>;
   startingLand: StartingLand;
   flag: Flag;
+}
+
+export interface GameSetup {
+  /** One entry per human-run nation, in turn order (1–4). The rest are run by the computer. */
+  players: FoundingChoices[];
   seed?: number;
-  /** A unique id for the game. The screen supplies one; the rules never invent randomness. */
+  /** A unique id for the game. The caller supplies one; the rules never invent randomness. */
   id?: string;
-  /** Today's date, YYYY-MM-DD, for the daily streak. */
+  /** Today's date, YYYY-MM-DD, for the daily run. */
   day?: string;
 }
 
@@ -217,6 +247,7 @@ export type Action =
   | { type: 'decide'; choice: number }
   | { type: 'diplomacy'; nation: NationId; act: DiplomacyAct }
   | { type: 'power'; power: string }
+  | { type: 'respond'; proposal: string; accept: boolean }
   | { type: 'checkIn'; day: string }
   | { type: 'endTurn' };
 

@@ -38,28 +38,36 @@ export function baseline(state: GameState, a: NationId, b: NationId): number {
   // Everyone fears a nation that is swallowing the map.
   const land = landCount(state) * BALANCE.threatShare;
   const fear = ownedHexes(state, a).length > land || ownedHexes(state, b).length > land ? 15 : 0;
-  return Math.round(30 - diff * 1.4 + (rel.tradePact ? 15 : 0) + (rel.embassy ? 10 : 0) - friction - fear);
+  return Math.round(30 - diff * 1.4 + (rel.tradePact ? 15 : 0) + (rel.embassy.length ? 10 : 0) - friction - fear);
 }
 
-export function envoyIsIn(state: GameState, nation: NationId): boolean {
-  return state.envoy.dest === null && hexAt(state, state.envoy).owner === nation;
+export function envoyIsIn(state: GameState, me: NationId, nation: NationId): boolean {
+  const envoy = state.nations[me].seat?.envoy;
+  return !!envoy && envoy.dest === null && hexAt(state, envoy).owner === nation;
 }
 
-export function wouldAcceptPeace(state: GameState, them: NationId): boolean {
-  const rel = relation(state, state.playerId, them);
+/** Would a computer-run nation accept peace from `me`? */
+export function wouldAcceptPeace(state: GameState, me: NationId, them: NationId): boolean {
+  const rel = relation(state, me, them);
   const duration = state.turn - rel.warSince;
   if (duration < 3) return false;
-  return duration >= 12 || militaryStrength(state, them) <= militaryStrength(state, state.playerId) * 1.3;
+  return duration >= 12 || militaryStrength(state, them) <= militaryStrength(state, me) * 1.3;
 }
 
-/** Can the player take this diplomatic action now? */
-export function canDiplomacy(state: GameState, them: NationId, act: DiplomacyAct): Check {
-  const me = state.nations[state.playerId];
+/** Deals that need the other side's agreement. A computer answers at once; a person gets a proposal. */
+const BILATERAL: DiplomacyAct[] = ['trade', 'pact', 'peace'];
+export const proposalId = (from: NationId, to: NationId, act: string): string => `${from}>${to}:${act}`;
+
+/** Can `meId` take this diplomatic action toward `them` now? */
+export function canDiplomacy(state: GameState, meId: NationId, them: NationId, act: DiplomacyAct): Check {
+  const me = state.nations[meId];
   const other = state.nations[them];
-  if (!other || them === state.playerId) return { ok: false, reason: 'Not a foreign nation' };
+  if (!other || them === meId) return { ok: false, reason: 'Not a foreign nation' };
   if (!other.alive) return { ok: false, reason: `${other.short} has fallen` };
-  const rel = relation(state, state.playerId, them);
+  const rel = relation(state, meId, them);
   const def = DIPLOMACY_ACTS.find((d) => d.id === act)!;
+  const pending = BILATERAL.includes(act) && state.proposals.some((p) => p.id === proposalId(meId, them, act));
+  if (pending) return { ok: false, reason: 'Proposed. Waiting for their answer' };
 
   if (act === 'war') {
     if (rel.war) return { ok: false, reason: 'Already at war' };
@@ -69,20 +77,20 @@ export function canDiplomacy(state: GameState, them: NationId, act: DiplomacyAct
   }
   if (act === 'peace') {
     if (!rel.war) return { ok: false, reason: 'You are not at war' };
-    if (rel.peaceRefusedTurn === state.turn) return { ok: false, reason: 'They refused this turn. Try again later.' };
+    if (rel.peaceRefusedTurn[meId] === state.turn) return { ok: false, reason: 'They refused this turn. Try again later.' };
     return { ok: true };
   }
   if (rel.war) return { ok: false, reason: 'You are at war' };
-  if (def.envoy && !envoyIsIn(state, them)) return { ok: false, reason: `Your envoy must be in ${other.short}` };
-  if (rel.lastActionTurn === state.turn) return { ok: false, reason: 'One envoy action per turn' };
+  if (def.envoy && !envoyIsIn(state, meId, them)) return { ok: false, reason: `Your envoy must be in ${other.short}` };
+  if (rel.lastActionTurn[meId] === state.turn) return { ok: false, reason: 'One envoy action per turn' };
   switch (act) {
     case 'trade':
       if (rel.tradePact) return { ok: false, reason: 'Pact already signed' };
-      if (rel.value < 0) return { ok: false, reason: 'Needs relations of 0 or better' };
+      if (rel.value < 0 && !other.seat) return { ok: false, reason: 'Needs relations of 0 or better' };
       if (me.stats.influence < COSTS.tradeInfluence) return { ok: false, reason: `Needs ${COSTS.tradeInfluence} influence` };
       break;
     case 'embassy':
-      if (rel.embassy) return { ok: false, reason: 'Embassy already open' };
+      if (rel.embassy.includes(meId)) return { ok: false, reason: 'Embassy already open' };
       if (me.stats.treasury < COSTS.embassyTreasury) return { ok: false, reason: `Needs ${COSTS.embassyTreasury} treasury` };
       break;
     case 'gift':
@@ -90,7 +98,7 @@ export function canDiplomacy(state: GameState, them: NationId, act: DiplomacyAct
       break;
     case 'pact':
       if (rel.napUntil >= state.turn) return { ok: false, reason: `Pact holds until turn ${rel.napUntil}` };
-      if (rel.value < COSTS.pactRelations) return { ok: false, reason: `Needs relations of ${COSTS.pactRelations} or better` };
+      if (rel.value < COSTS.pactRelations && !other.seat) return { ok: false, reason: `Needs relations of ${COSTS.pactRelations} or better` };
       if (me.stats.influence < COSTS.pactInfluence) return { ok: false, reason: `Needs ${COSTS.pactInfluence} influence` };
       break;
     case 'denounce':
@@ -126,13 +134,16 @@ export function declareWar(state: GameState, aggressor: NationId, target: Nation
     if (brokePact) shiftRelation(state, aggressor, other, -15);
     else if (relation(state, target, other).value > 30) shiftRelation(state, aggressor, other, -10);
   }
-  // Envoys are sent home when war breaks out.
-  const player = state.nations[state.playerId];
-  const host = hexAt(state, state.envoy).owner;
-  const other = aggressor === state.playerId ? target : target === state.playerId ? aggressor : null;
-  if (other && (host === other || (state.envoy.dest && hexAt(state, state.envoy.dest).owner === other))) {
-    state.envoy = { ...player.capital, dest: null, arrivesTurn: 0 };
+  // Envoys are sent home when war breaks out, and offers between the two are withdrawn.
+  for (const [mine, theirs] of [[aggressor, target], [target, aggressor]]) {
+    const seat = state.nations[mine].seat;
+    if (!seat) continue;
+    const e = seat.envoy;
+    if (hexAt(state, e).owner === theirs || (e.dest && hexAt(state, e.dest).owner === theirs)) {
+      seat.envoy = { ...state.nations[mine].capital, dest: null, arrivesTurn: 0 };
+    }
   }
+  state.proposals = state.proposals.filter((p) => p.act === 'peace' || !((p.from === aggressor && p.to === target) || (p.from === target && p.to === aggressor)));
   log(state, { kind: 'war', important: true, at: T.capital,
     text: `${A.name} declared war on ${T.name}${brokePact ? ', breaking their non-aggression pact' : ''}.` });
 }
@@ -146,50 +157,91 @@ export function makePeace(state: GameState, a: NationId, b: NationId): void {
   log(state, { kind: 'peace', important: true, text: `${state.nations[a].name} and ${state.nations[b].name} made peace.` });
 }
 
-/** Apply a player's diplomatic action. Callers check `canDiplomacy` first. */
-export function doDiplomacy(state: GameState, them: NationId, act: DiplomacyAct): void {
-  const me = state.nations[state.playerId];
+/** Put a two-sided deal into force. `from` is the nation that proposed it and pays for it. */
+function conclude(state: GameState, from: NationId, to: NationId, act: DiplomacyAct): void {
+  const me = state.nations[from];
+  const other = state.nations[to];
+  const rel = relation(state, from, to);
+  if (act === 'trade') {
+    me.stats.influence -= COSTS.tradeInfluence;
+    rel.tradePact = true;
+    shiftRelation(state, from, to, 10);
+    log(state, { kind: 'diplomacy', about: [from, to], text: `${me.name} and ${other.name} signed a trade pact.` });
+  } else if (act === 'pact') {
+    me.stats.influence -= COSTS.pactInfluence;
+    rel.napUntil = state.turn + COSTS.pactTurns;
+    shiftRelation(state, from, to, 5);
+    log(state, { kind: 'diplomacy', about: [from, to], text: `${me.name} and ${other.name} signed a non-aggression pact until turn ${rel.napUntil}.` });
+  } else if (act === 'peace') {
+    makePeace(state, from, to);
+  }
+}
+
+/** Apply a diplomatic action by `meId`. Callers check `canDiplomacy` first. */
+export function doDiplomacy(state: GameState, meId: NationId, them: NationId, act: DiplomacyAct): void {
+  const me = state.nations[meId];
   const other = state.nations[them];
-  const rel = relation(state, state.playerId, them);
+  const rel = relation(state, meId, them);
+  if (act !== 'war' && act !== 'peace') rel.lastActionTurn[meId] = state.turn;
+
+  if (BILATERAL.includes(act)) {
+    if (other.seat) {
+      // Another person decides. The offer waits for them.
+      state.proposals.push({ id: proposalId(meId, them, act), from: meId, to: them, act: act as 'trade' | 'pact' | 'peace', turn: state.turn });
+      log(state, { kind: 'diplomacy', to: them, important: true, text: `${me.name} proposes ${PROPOSAL_WORDS[act]}. Answer on the Diplomacy screen.` });
+      return;
+    }
+    if (act === 'peace' && !wouldAcceptPeace(state, meId, them)) {
+      rel.peaceRefusedTurn[meId] = state.turn;
+      log(state, { kind: 'diplomacy', to: meId, text: `${other.name} refused your offer of peace.` });
+      return;
+    }
+    conclude(state, meId, them, act);
+    return;
+  }
   switch (act) {
-    case 'trade':
-      me.stats.influence -= COSTS.tradeInfluence;
-      rel.tradePact = true;
-      shiftRelation(state, me.id, them, 10);
-      log(state, { kind: 'diplomacy', text: `Trade pact signed with ${other.name}.` });
-      break;
     case 'embassy':
       me.stats.treasury -= COSTS.embassyTreasury;
-      rel.embassy = true;
-      shiftRelation(state, me.id, them, 5);
-      log(state, { kind: 'diplomacy', text: `Embassy opened in ${other.name}.` });
+      rel.embassy.push(meId);
+      shiftRelation(state, meId, them, 5);
+      log(state, { kind: 'diplomacy', to: meId, text: `Embassy opened in ${other.name}.` });
       break;
     case 'gift':
       me.stats.treasury -= COSTS.giftTreasury;
-      shiftRelation(state, me.id, them, 12);
-      log(state, { kind: 'diplomacy', text: `${other.name} accepted your gift.` });
-      break;
-    case 'pact':
-      me.stats.influence -= COSTS.pactInfluence;
-      rel.napUntil = state.turn + COSTS.pactTurns;
-      shiftRelation(state, me.id, them, 5);
-      log(state, { kind: 'diplomacy', text: `Non-aggression pact with ${other.name} until turn ${rel.napUntil}.` });
+      if (other.seat) other.stats.treasury += COSTS.giftTreasury;
+      shiftRelation(state, meId, them, 12);
+      log(state, { kind: 'diplomacy', about: [meId, them], text: `${other.name} accepted a gift from ${me.name}.` });
       break;
     case 'denounce':
-      shiftRelation(state, me.id, them, -25);
+      shiftRelation(state, meId, them, -25);
       me.stats.stability = clamp(me.stats.stability + 3, 0, 100);
-      log(state, { kind: 'diplomacy', text: `You denounced the government of ${other.name}.` });
+      log(state, { kind: 'diplomacy', about: [meId, them], important: !!other.seat, text: `${me.name} denounced the government of ${other.name}.` });
       break;
     case 'war':
-      declareWar(state, me.id, them);
-      return;
-    case 'peace':
-      if (wouldAcceptPeace(state, them)) makePeace(state, me.id, them);
-      else {
-        rel.peaceRefusedTurn = state.turn;
-        log(state, { kind: 'diplomacy', text: `${other.name} refused your offer of peace.` });
-      }
-      return;
+      declareWar(state, meId, them);
+      break;
   }
-  rel.lastActionTurn = state.turn;
+}
+
+export const PROPOSAL_WORDS: Record<string, string> = { trade: 'a trade pact', pact: 'a non-aggression pact', peace: 'peace' };
+
+/** Can `meId` answer this proposal? Accepting needs the proposer to still be able to pay. */
+export function canRespond(state: GameState, meId: NationId, id: string, accept: boolean): Check {
+  const p = state.proposals.find((x) => x.id === id && x.to === meId);
+  if (!p) return { ok: false, reason: 'No such proposal' };
+  if (!accept) return { ok: true };
+  const from = state.nations[p.from];
+  const rel = relation(state, p.from, p.to);
+  if (p.act === 'peace') return rel.war ? { ok: true } : { ok: false, reason: 'You are no longer at war' };
+  if (rel.war) return { ok: false, reason: 'You are at war' };
+  const cost = p.act === 'trade' ? COSTS.tradeInfluence : COSTS.pactInfluence;
+  if (from.stats.influence < cost) return { ok: false, reason: `${from.short} can no longer afford it` };
+  return { ok: true };
+}
+
+export function doRespond(state: GameState, meId: NationId, id: string, accept: boolean): void {
+  const p = state.proposals.find((x) => x.id === id && x.to === meId)!;
+  state.proposals = state.proposals.filter((x) => x !== p);
+  if (accept) conclude(state, p.from, p.to, p.act);
+  else log(state, { kind: 'diplomacy', to: p.from, important: true, text: `${state.nations[meId].name} turned down your offer of ${PROPOSAL_WORDS[p.act]}.` });
 }

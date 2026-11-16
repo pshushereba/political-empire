@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { applyAction, check, checkInBonus, createGame, SAVE_VERSION, type Action, type Check, type Effect, type FoundingChoices, type GameState, type LogEntry } from '../game';
+import { activeHumans, applyAction, check, checkInBonus, createGame, reportFor, SAVE_VERSION, type Action, type Check, type Effect, type FoundingChoices, type GameState, type LogEntry, type NationId } from '../game';
 import { backendConfigured, supabase } from '../backend/client';
 import { deleteSave, fetchSave, pushSave, submitScore, type CloudSave } from '../backend/cloud';
 import { recordLegacy } from './legacy';
@@ -28,8 +28,14 @@ interface Store {
   /** Apply an action. Returns the new state (unchanged if the action isn't allowed). */
   dispatch: (action: Action) => GameState;
   can: (action: Action) => Check;
-  newGame: (choices: FoundingChoices) => void;
+  /** One entry per person playing. More than one starts a pass-and-play game on this device. */
+  newGame: (players: FoundingChoices[]) => void;
   abandon: () => void;
+  /** The nation the person at this device is playing right now. */
+  me: NationId | null;
+  /** Pass-and-play: the nation whose player should take the device next. */
+  handoff: NationId | null;
+  acceptHandoff: () => void;
   /** What happened during the turn that just ended. */
   report: { turn: number; entries: LogEntry[] } | null;
   dismissReport: () => void;
@@ -53,6 +59,12 @@ export interface Account {
   resolveConflict: (keep: 'cloud' | 'local') => void;
 }
 
+/** The first player still in the game who hasn't ended the current turn. */
+function whoIsUp(s: GameState): NationId | null {
+  const humans = activeHumans(s);
+  return humans.find((id) => !s.nations[id].seat!.ready) ?? humans[0] ?? s.humans[0] ?? null;
+}
+
 const Ctx = createContext<Store | null>(null);
 
 export function StoreProvider({ children }: { children: ReactNode }) {
@@ -61,6 +73,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [welcome, setWelcome] = useState<Store['welcome']>(null);
   const ref = useRef(state);
   ref.current = state;
+  // Whose turn it is at this device. In a solo game that never changes.
+  const [me, setMe] = useState<NationId | null>(() => (state ? whoIsUp(state) : null));
+  const meRef = useRef(me);
+  meRef.current = me;
+  const [handoff, setHandoff] = useState<NationId | null>(null);
+  /** The last turn each player has seen begin, so each gets their own report. */
+  const seen = useRef<Record<NationId, number>>({});
+  const begin = (s: GameState, id: NationId) => {
+    const last = seen.current[id];
+    if (last !== undefined && s.turn > last) setReport({ turn: s.turn - 1, entries: reportFor(s, id, s.turn - 1) });
+    seen.current[id] = s.turn;
+    meRef.current = id;
+    setMe(id);
+  };
+  if (state && me && seen.current[me] === undefined) seen.current[me] = state.turn;
 
   useEffect(() => {
     try {
@@ -73,11 +100,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const dispatch = useCallback((action: Action): GameState => {
     const prev = ref.current!;
-    const next = applyAction(prev, action);
+    const id = meRef.current!;
+    const next = applyAction(prev, action, id);
     if (next !== prev) {
       ref.current = next;
       setState(next);
-      if (action.type === 'endTurn') setReport({ turn: prev.turn, entries: next.log.filter((l) => l.turn === prev.turn) });
+      if (action.type === 'endTurn' && next.status === 'playing') {
+        const up = whoIsUp(next);
+        // Alone at the device, carry straight on. With others, hand it over first.
+        if (up === id) begin(next, id);
+        else if (up) setHandoff(up);
+      }
     }
     return next;
   }, []);
@@ -87,11 +120,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const checkIn = () => {
       const prev = ref.current;
       if (!prev || prev.status !== 'playing' || document.visibilityState !== 'visible') return;
-      const next = applyAction(prev, { type: 'checkIn', day: today() });
+      // The daily run belongs to solo play: one person, one device, one nation.
+      const id = meRef.current;
+      if (!id || prev.humans.length !== 1) return;
+      const next = applyAction(prev, { type: 'checkIn', day: today() }, id);
       if (next === prev) return;
       ref.current = next;
       setState(next);
-      if (prev.checkIn.day) setWelcome({ streak: next.checkIn.streak, bonus: checkInBonus(prev, next.checkIn.streak) });
+      const before = prev.nations[id].seat!.checkIn;
+      const streak = next.nations[id].seat!.checkIn.streak;
+      if (before.day) setWelcome({ streak, bonus: checkInBonus(prev, id, streak) });
     };
     checkIn();
     document.addEventListener('visibilitychange', checkIn);
@@ -123,6 +161,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (cloud && (!local || (local.id === cloud.state.id && cloud.state.turn > local.turn))) {
         ref.current = cloud.state;
         setState(cloud.state);
+        setMe(whoIsUp(cloud.state));
       } else if (cloud && local && local.id !== cloud.state.id) {
         setConflict(cloud);
       }
@@ -136,6 +175,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (!user || reconciled !== user.id || conflict) return;
     const timer = setTimeout(() => {
       setSync('saving');
+      // Pass-and-play games stay on the device they are played on.
+      if (state && state.humans.length > 1) { setSync('idle'); return; }
       (state ? pushSave(state) : deleteSave()).then(() => setSync('saved'), () => setSync('error'));
     }, 1500);
     return () => clearTimeout(timer);
@@ -158,7 +199,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     signOut: () => { void supabase?.auth.signOut(); },
     conflict,
     resolveConflict: (keep) => {
-      if (keep === 'cloud' && conflict) { ref.current = conflict.state; setState(conflict.state); setReport(null); }
+      if (keep === 'cloud' && conflict) { ref.current = conflict.state; setState(conflict.state); setMe(whoIsUp(conflict.state)); setReport(null); }
       setConflict(null);
     },
   }), [user, sync, conflict]);
@@ -166,24 +207,32 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const store = useMemo<Store>(() => ({
     state,
     dispatch,
-    can: (action) => (ref.current ? check(ref.current, action) : { ok: false, reason: 'No game' }),
-    newGame: (choices) => {
+    me,
+    handoff,
+    acceptHandoff: () => { if (ref.current && handoff) begin(ref.current, handoff); setHandoff(null); },
+    can: (action) => (ref.current && meRef.current ? check(ref.current, action, meRef.current) : { ok: false, reason: 'No game' }),
+    newGame: (players) => {
+      const game = createGame({ players, day: today(), id: crypto.randomUUID(), seed: (Math.random() * 2 ** 31) | 0 });
+      seen.current = {};
       setReport(null);
-      setState(createGame({ ...choices, day: today(), id: crypto.randomUUID(), seed: choices.seed ?? (Math.random() * 2 ** 31) | 0 }));
+      setHandoff(null);
+      setState(game);
+      setMe(game.humans[0]);
     },
     abandon: () => {
       const ended = ref.current;
-      const record = ended ? recordLegacy(ended) : null;
+      // Only solo games are scored: a shared device has no single player to credit.
+      const record = ended && ended.humans.length === 1 ? recordLegacy(ended, ended.humans[0]) : null;
       // Signed-in players also enter the shared hall. Failure here must never block a new game.
       if (ended && record) submitScore(ended.id, record).catch(() => undefined);
-      setReport(null); setWelcome(null); setState(null);
+      setReport(null); setWelcome(null); setHandoff(null); setMe(null); setState(null);
     },
     report,
     dismissReport: () => setReport(null),
     welcome,
     dismissWelcome: () => setWelcome(null),
     account,
-  }), [state, report, welcome, dispatch, account]);
+  }), [state, me, handoff, report, welcome, dispatch, account]);
 
   return <Ctx.Provider value={store}>{children}</Ctx.Provider>;
 }
@@ -195,10 +244,10 @@ export function useStore(): Store {
 }
 
 /** For screens inside a running game. */
-export function useGame(): Omit<Store, 'state'> & { state: GameState } {
+export function useGame(): Omit<Store, 'state' | 'me'> & { state: GameState; me: NationId } {
   const s = useStore();
-  if (!s.state) throw new Error('No game in progress');
-  return s as Omit<Store, 'state'> & { state: GameState };
+  if (!s.state || !s.me) throw new Error('No game in progress');
+  return s as Omit<Store, 'state' | 'me'> & { state: GameState; me: NationId };
 }
 
 // ---- Tiny hash router ------------------------------------------------------

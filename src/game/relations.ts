@@ -26,5 +26,12 @@ export function stance(rel: Relation): Stance {
 }
 
 export function newRelation(value: number): Relation {
-  return { value, war: false, warSince: 0, tradePact: false, embassy: false, napUntil: 0, lastActionTurn: 0, peaceRefusedTurn: 0 };
+  return { value, war: false, warSince: 0, tradePact: false, embassy: [], napUntil: 0, lastActionTurn: {}, peaceRefusedTurn: {} };
 }
+
+/** Nations run by people that are still in the game. */
+export function activeHumans(state: GameState): NationId[] {
+  return state.humans.filter((id) => state.nations[id].alive);
+}
+
+export const isHuman = (state: GameState, id: NationId): boolean => state.nations[id]?.seat != null;

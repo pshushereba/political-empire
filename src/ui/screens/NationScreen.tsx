@@ -35,8 +35,8 @@ function doctrine(n: Nation): string[] {
 }
 
 export function NationScreen() {
-  const { state, abandon, dispatch, can } = useGame();
-  const n = state.nations[state.playerId];
+  const { state, me, abandon, dispatch, can } = useGame();
+  const n = state.nations[me];
   const eco = economy(state, n.id);
   const land = landCount(state);
   const goal = Math.ceil(land * BALANCE.hegemonyShare);
@@ -82,7 +82,7 @@ export function NationScreen() {
                   <div key={p.id} className="card col gap-8">
                     <div className="row spread"><strong>{p.name}</strong><span className="chip">{cost || 'Free'} · every {p.cooldown} turns</span></div>
                     <span className="small muted">{p.desc}</span>
-                    <EffectChips effects={scaledEffects(state, p.effects)} />
+                    <EffectChips effects={scaledEffects(state, p.effects, me)} />
                     <button type="button" className="btn small" disabled={!ok.ok} onClick={() => dispatch({ type: 'power', power: p.id })}>{ok.ok ? p.name : ok.reason}</button>
                   </div>
                 );

@@ -43,8 +43,7 @@ function YieldChips({ y }: { y: { income: number; supply: number; security: numb
 
 /** A close-up of one hex and the six around it, for planning where buildings go. */
 export function DistrictScreen({ at }: { at?: string }) {
-  const { state, dispatch } = useGame();
-  const me = state.playerId;
+  const { state, me, dispatch } = useGame();
   const player = state.nations[me];
   const [tilted, setTilted] = useState(true);
   const [pick, setPick] = useState<string | null>(null);
@@ -250,7 +249,8 @@ function FocusCard({ state, hex, isCentre }: { state: GameState; hex: Hex; isCen
 }
 
 function BuildCard({ state, def, picked, onPick }: { state: GameState; def: BuildingDef; picked: boolean; onPick: () => void }) {
-  const player = state.nations[state.playerId];
+  const { me } = useGame();
+  const player = state.nations[me];
   const cost = buildCost(state, player.id, def);
   const locked = def.era > player.era ? 'Unlocks in a later era'
     : def.governments && !def.governments.includes(player.government as never) ? 'Not available to your form of government'

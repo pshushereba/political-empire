@@ -11,8 +11,9 @@ import { EffectChips, Yield } from '../components/common';
 import { useGame } from '../store';
 
 export function MapScreen() {
-  const { state, dispatch, can } = useGame();
-  const player = state.nations[state.playerId];
+  const { state, me, dispatch, can } = useGame();
+  const player = state.nations[me];
+  const seat = player.seat!;
   const [sel, setSel] = useState<HexRef>(player.capital);
   const [target, setTarget] = useState<HexRef | null>(null);
   const [split, setSplit] = useState<UnitCounts | null>(null);
@@ -47,15 +48,15 @@ export function MapScreen() {
     else { setTarget(null); setSplit(null); }
   };
 
-  const question = state.dilemma ? DILEMMA_BY_ID[state.dilemma.id] : null;
-  const answered = state.dilemma?.choice != null;
+  const question = seat.dilemma ? DILEMMA_BY_ID[seat.dilemma.id] : null;
+  const answered = seat.dilemma?.choice != null;
   const endTurn = can({ type: 'endTurn' });
   const myArmies = state.armies.filter((a) => a.owner === player.id);
 
   return (
     <div className="map-screen">
       <main className="map-area">
-        <HexMap state={state} selected={sel} target={order ? order.to : null} highlights={options} onPick={pick} />
+        <HexMap state={state} me={me} selected={sel} target={order ? order.to : null} highlights={options} onPick={pick} />
         {myArmy && options.size > 0 && !order && (
           <p className="map-hint" role="status">Choose a highlighted hex to give this army its orders</p>
         )}
@@ -121,7 +122,7 @@ export function MapScreen() {
                 {answered ? 'Today’s question · Decided' : `Today’s question · ${question.category}`}
               </span>
               <span className="display" style={{ fontSize: 17 }}>{question.title}</span>
-              {answered && <span className="small muted">{question.choices[state.dilemma!.choice!].title}</span>}
+              {answered && <span className="small muted">{question.choices[seat.dilemma!.choice!].title}</span>}
             </a>
           )}
           <button type="button" className="btn primary block" disabled={!endTurn.ok} onClick={() => dispatch({ type: 'endTurn' })}>
@@ -135,12 +136,13 @@ export function MapScreen() {
 
 /** Collapsed to one line so it doesn't cover the map; opens to show all three. */
 function Objectives({ state }: { state: GameState }) {
-  const list = activeObjectives(state);
+  const { me } = useGame();
+  const list = activeObjectives(state, me);
   const nearest = [...list].sort((x, y) => y.progress - x.progress)[0];
   return (
     <details className="objectives">
       <summary>
-        <span className="eyebrow">Objectives · {state.objectives.done.length} done</span>
+        <span className="eyebrow">Objectives · {state.nations[me].seat!.objectives.done.length} done</span>
         <span>{nearest ? `${nearest.def.title} · ${Math.round(nearest.progress * 100)}%` : 'All complete'}</span>
       </summary>
       <ul className="col gap-8">
@@ -157,7 +159,7 @@ function Objectives({ state }: { state: GameState }) {
 }
 
 function HexSummary({ state, hex }: { state: GameState; hex: Hex }) {
-  const player = state.playerId;
+  const { me: player } = useGame();
   const owner = hex.owner ? state.nations[hex.owner] : null;
   const t = TERRAIN[hex.terrain];
   const sea = hex.terrain === 'sea';
@@ -312,9 +314,9 @@ function LotsCard({ hex, onBuild }: { hex: Hex; onBuild: () => void }) {
 
 /** Takes over the side panel while the player chooses what to build. */
 function BuildMenu({ state, hex, onClose }: { state: GameState; hex: Hex; onClose: () => void }) {
-  const { dispatch } = useGame();
+  const { dispatch, me } = useGame();
   const [cat, setCat] = useState<BuildingCategory>('commerce');
-  const player = state.nations[state.playerId];
+  const player = state.nations[me];
   return (
     <section style={{ borderBottom: 0 }}>
       <div className="row spread">
@@ -329,7 +331,7 @@ function BuildMenu({ state, hex, onClose }: { state: GameState; hex: Hex; onClos
       </div>
       <ul className="col gap-8">
         {BUILDINGS.filter((b) => b.category === cat).map((b) => {
-          const ok = checkAction(state, { type: 'build', at: hex, building: b.id });
+          const ok = checkAction(state, { type: 'build', at: hex, building: b.id }, me);
           return (
             <li key={b.id}>
               <button type="button" className="option" disabled={!ok.ok} onClick={() => { dispatch({ type: 'build', at: hex, building: b.id }); onClose(); }}>
@@ -365,19 +367,19 @@ function BuildingYields({ id }: { id: string }) {
 }
 
 function RecruitCard({ state, hex }: { state: GameState; hex: Hex }) {
-  const { dispatch } = useGame();
+  const { dispatch, me } = useGame();
   return (
     <section>
       <h3 className="eyebrow">Raise troops here</h3>
       <ul className="col gap-8">
         {UNITS.map((u) => {
-          const ok = checkAction(state, { type: 'recruit', at: hex, unit: u.id });
+          const ok = checkAction(state, { type: 'recruit', at: hex, unit: u.id }, me);
           return (
             <li key={u.id}>
               <button type="button" className="option" disabled={!ok.ok} onClick={() => dispatch({ type: 'recruit', at: hex, unit: u.id })}>
                 <Sprite id={u.id} size={40} dim={!ok.ok} />
                 <span className="col gap-4 grow">
-                  <span className="row spread"><strong>{u.name}</strong><span className="mono small">{recruitCost(state, state.playerId, u)} · {u.upkeep}/turn</span></span>
+                  <span className="row spread"><strong>{u.name}</strong><span className="mono small">{recruitCost(state, me, u)} · {u.upkeep}/turn</span></span>
                   <span className="small muted">{u.desc}</span>
                   <span className="row wrap-row gap-4"><span className="chip">Attack {u.attack}</span><span className="chip">Defence {u.defence}</span><span className="chip">Moves {u.move}</span></span>
                   {!ok.ok && <span className="small neg">{ok.reason}</span>}
@@ -393,13 +395,13 @@ function RecruitCard({ state, hex }: { state: GameState; hex: Hex }) {
 }
 
 function HexActions({ state, hex }: { state: GameState; hex: Hex }) {
-  const { dispatch } = useGame();
-  const player = state.playerId;
+  const { dispatch, me: player } = useGame();
   if (hex.terrain === 'sea') return null;
-  const claim = checkAction(state, { type: 'claimHex', at: hex });
-  const envoy = checkAction(state, { type: 'moveEnvoy', to: hex });
-  const turns = envoyTravelTurns(state, hex);
-  const here = same(state.envoy, hex) && !state.envoy.dest;
+  const mine = state.nations[player].seat!.envoy;
+  const claim = checkAction(state, { type: 'claimHex', at: hex }, player);
+  const envoy = checkAction(state, { type: 'moveEnvoy', to: hex }, player);
+  const turns = envoyTravelTurns(state, player, hex);
+  const here = same(mine, hex) && !mine.dest;
   return (
     <section>
       {hex.owner === null && (

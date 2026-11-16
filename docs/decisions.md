@@ -26,14 +26,19 @@
 
 20. **Supabase is the backend and auth provider.** Accounts by email link, one cloud save per player, and a shared ranking. The game stays offline-first: the browser save is always written and the backend is optional at runtime. See `docs/backend.md`.
 
+21. **Two ways to play on one engine.** Alone against computer-run nations, or against other people, with the computer filling empty seats. The rules treat any nation as possibly human; solo is simply a world with one human. Pass-and-play on a shared device exists now; online play is planned in `docs/backend.md`.
+22. **Deals between players need both sides.** Pacts and peace offered to a human become proposals. Computer nations answer immediately.
+
 ## Open questions
+
+- **How long is a turn online?** A real day, a few minutes, or the host's choice. See the plan in `docs/backend.md`.
+- **Should players see each other's treasuries and armies?** Today everything is visible.
 
 - **Should ranked scores be validated on the server?** Today the client reports its own score. An Edge Function could replay the game and compute it. Worth doing before the ranking matters to anyone.
 - **Sign-in methods.** Email link only so far. Google, Apple or passwords are a Supabase setting plus a button.
 
 - **Which server-backed return hooks to build.** Candidates are listed at the end of `docs/backend.md`.
 - **Balance.** Numbers were tuned by simulation, not by people playing. Expect to adjust `BALANCE`, unit stats and building yields.
-- **Single-player or multiplayer?** The build is single-player against AI rivals. Is multiplayer (shared world, turns, accounts) planned?
 - **Player-made districts.** The close-up shows a hex and its neighbours; named, player-drawn districts are still open.
 - **Map.** The world is fixed at 14 × 10 with the same terrain every game. Random or larger maps? Zoom levels?
 - **Rival politics.** Rivals have fixed ideologies and do not answer dilemmas. "Their council is debating" is not built.

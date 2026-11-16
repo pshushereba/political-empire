@@ -17,6 +17,18 @@ const PATTERNS = [
 export function Founding() {
   const { newGame } = useStore();
   const [c, setC] = useState<FoundingChoices>(DEFAULT_FOUNDING);
+  /** How many people are playing on this device, and the nations already founded. */
+  const [count, setCount] = useState(1);
+  const [done, setDone] = useState<FoundingChoices[]>([]);
+  const seatNo = done.length + 1;
+  const last = seatNo >= count;
+  const submit = () => {
+    if (last) { newGame([...done, c]); go('/'); return; }
+    setDone([...done, c]);
+    const pair = FLAG_PAIRS[seatNo % FLAG_PAIRS.length];
+    setC({ ...DEFAULT_FOUNDING, flag: { pattern: 'tricolour', a: pair.a, b: pair.b } });
+    window.scrollTo(0, 0);
+  };
   const land = STARTING_LANDS.find((l) => l.id === c.startingLand)!;
   const gov = GOVERNMENT_BY_ID[governmentFor({
     liberty: FOUNDING_VALUES[c.answers.liberty], market: FOUNDING_VALUES[c.answers.market],
@@ -28,13 +40,37 @@ export function Founding() {
   const wonAs = new Set(hall.filter((r) => r.outcome === 'won').map((r) => r.government));
 
   return (
-    <form className="founding" onSubmit={(e) => { e.preventDefault(); newGame(c); go('/'); }}>
+    <form className="founding" onSubmit={(e) => { e.preventDefault(); submit(); }}>
       <div className="left">
         <div className="row"><Logo /><span className="wordmark">POLITICAL EMPIRE</span></div>
         <div className="col gap-8">
-          <h1 className="h-page">Found a nation</h1>
+          <h1 className="h-page">{count > 1 ? `Player ${seatNo} of ${count}: found your nation` : 'Found a nation'}</h1>
           <p className="body-large">Four questions set where your nation starts. A new question every turn decides where it ends up, and three rivals share the map.</p>
         </div>
+
+        {done.length === 0 && (
+          <div className="col gap-8" role="group" aria-label="How will you play?">
+            <h2 className="h-section">How will you play?</h2>
+            <div className="toggle-group">
+              <button type="button" className="toggle" aria-pressed={count === 1} onClick={() => setCount(1)}>
+                <strong>Alone</strong><span className="small muted">Build your nation and take on three computer-run rivals.</span>
+              </button>
+              <button type="button" className="toggle" aria-pressed={count > 1} onClick={() => setCount(Math.max(2, count))}>
+                <strong>Pass and play</strong><span className="small muted">Two to four people share this device. The computer runs the rest.</span>
+              </button>
+              <button type="button" className="toggle" disabled style={{ opacity: 0.6 }}>
+                <strong>Online</strong><span className="small muted">Against other players, each on their own device. Not open yet.</span>
+              </button>
+            </div>
+            {count > 1 && (
+              <div className="row gap-8" role="group" aria-label="Number of players">
+                <span className="small muted">Players</span>
+                {[2, 3, 4].map((n) => <button key={n} type="button" className="btn small" aria-pressed={count === n} style={count === n ? { borderColor: 'var(--accent)', background: 'var(--surface-amber)' } : undefined} onClick={() => setCount(n)}>{n}</button>)}
+              </div>
+            )}
+          </div>
+        )}
+        {done.length > 0 && <p className="small muted">Already founded: {done.map((d, i) => d.name.trim() || `Player ${i + 1}`).join(', ')}.</p>}
 
         <div className="grid-2">
           <label className="field"><span className="eyebrow">Name of the nation</span>
@@ -132,7 +168,7 @@ export function Founding() {
         )}
         <AccountPanel />
         <div style={{ flex: 1 }} />
-        <button type="submit" className="btn primary block">Found the nation</button>
+        <button type="submit" className="btn primary block">{last ? 'Found the nation' : `Next: player ${seatNo + 1}`}</button>
       </aside>
     </form>
   );

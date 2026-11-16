@@ -1,28 +1,32 @@
 import {
   AXES, baseline, DIPLOMACY_ACTS, economy, envoyIsIn, formatPopulation, militaryStrength, relation, stance, unitCount,
-  wouldAcceptPeace, type GameState, type NationId,
+  PROPOSAL_WORDS, wouldAcceptPeace, type GameState, type NationId,
 } from '../../game';
 import { Flag } from '../components/common';
 import { go, useGame } from '../store';
 
-function reasoning(state: GameState, them: NationId): string {
-  const rel = relation(state, state.playerId, them);
+function reasoning(state: GameState, me: NationId, them: NationId): string {
+  const rel = relation(state, me, them);
   const n = state.nations[them];
-  if (rel.war) return `You have been at war since turn ${rel.warSince}. ${wouldAcceptPeace(state, them) ? `${n.short} is ready to talk.` : `${n.short} believes it can still win.`}`;
-  const target = baseline(state, state.playerId, them);
+  if (rel.war) return `You have been at war since turn ${rel.warSince}. ${n.seat ? `${n.short} is run by another player: peace is theirs to accept or refuse.` : wouldAcceptPeace(state, me, them) ? `${n.short} is ready to talk.` : `${n.short} believes it can still win.`}`;
+  if (n.seat) return `${n.name} is run by another player. Pacts need their agreement, and nothing but their own judgement stops them attacking you.`;
+  const target = baseline(state, me, them);
   const trend = target > rel.value ? 'warming' : target < rel.value ? 'cooling' : 'steady';
-  const pacts = [rel.tradePact && 'a trade pact', rel.embassy && 'your embassy', rel.napUntil >= state.turn && `a non-aggression pact until turn ${rel.napUntil}`].filter(Boolean);
+  const pacts = [rel.tradePact && 'a trade pact', rel.embassy.includes(me) && 'your embassy', rel.napUntil >= state.turn && `a non-aggression pact until turn ${rel.napUntil}`].filter(Boolean);
   return `Relations are ${trend}, drifting toward ${target}. Nations that think alike get along; shared borders without a pact cause friction.${pacts.length ? ` In force: ${pacts.join(', ')}.` : ''}`;
 }
 
 export function DiplomacyScreen({ nationId }: { nationId?: string }) {
-  const { state, dispatch, can } = useGame();
-  const player = state.nations[state.playerId];
+  const { state, me, dispatch, can } = useGame();
+  const player = state.nations[me];
+  const envoy = player.seat!.envoy;
+  const inbox = state.proposals.filter((p) => p.to === me);
   const rivals = state.order.filter((id) => id !== player.id);
   const id = nationId && state.nations[nationId] && nationId !== player.id ? nationId : rivals.find((r) => state.nations[r].alive) ?? rivals[0];
   const n = state.nations[id];
   const rel = relation(state, player.id, id);
-  const here = envoyIsIn(state, id);
+  const here = envoyIsIn(state, me, id);
+  const embassy = rel.embassy.includes(me);
   const eco = economy(state, id);
   const pct = (rel.value + 100) / 2;
 
@@ -32,16 +36,34 @@ export function DiplomacyScreen({ nationId }: { nationId?: string }) {
         <div className="tabs" role="group" aria-label="Nation" style={{ alignSelf: 'flex-start', minWidth: 520 }}>
           {rivals.map((r) => (
             <button key={r} type="button" aria-pressed={r === id} onClick={() => go(`/diplomacy/${r}`)}>
-              {state.nations[r].short}{state.nations[r].alive ? ` · ${stance(relation(state, player.id, r))}` : ' · Fallen'}
+              {state.nations[r].short}{state.nations[r].seat ? ' (player)' : ''}{state.nations[r].alive ? ` · ${stance(relation(state, player.id, r))}` : ' · Fallen'}
             </button>
           ))}
         </div>
+
+        {inbox.length > 0 && (
+          <section className="col" aria-label="Proposals awaiting your answer">
+            <h2 className="h-section">Awaiting your answer</h2>
+            {inbox.map((p) => {
+              const yes = can({ type: 'respond', proposal: p.id, accept: true });
+              return (
+                <div key={p.id} className="card row spread" style={{ borderColor: 'var(--accent)', background: 'var(--surface-amber)' }}>
+                  <span><strong>{state.nations[p.from].name}</strong> proposes {PROPOSAL_WORDS[p.act]}. <span className="muted small">Offered on turn {p.turn}; lapses if left unanswered.</span></span>
+                  <span className="row gap-8">
+                    <button type="button" className="btn small light" disabled={!yes.ok} onClick={() => dispatch({ type: 'respond', proposal: p.id, accept: true })}>{yes.ok ? 'Accept' : yes.reason}</button>
+                    <button type="button" className="btn small" onClick={() => dispatch({ type: 'respond', proposal: p.id, accept: false })}>Decline</button>
+                  </span>
+                </div>
+              );
+            })}
+          </section>
+        )}
 
         <header className="card row gap-24" style={{ borderColor: n.color, background: `color-mix(in srgb, ${n.color} 10%, var(--surface-panel))`, padding: 24 }}>
           <Flag flag={n.flag} width={96} />
           <div className="col gap-4 grow">
             <span className="eyebrow">
-              {!n.alive ? 'This nation has fallen' : here ? 'Your envoy is visiting' : state.envoy.dest ? `Your envoy is travelling · arrives turn ${state.envoy.arrivesTurn}` : 'Your envoy is elsewhere'}
+              {!n.alive ? 'This nation has fallen' : here ? 'Your envoy is visiting' : envoy.dest ? `Your envoy is travelling · arrives turn ${envoy.arrivesTurn}` : 'Your envoy is elsewhere'}
             </span>
             <h1 className="h-page">{n.name}</h1>
             <p className="muted">“{n.motto}” · {n.description}</p>
@@ -61,7 +83,7 @@ export function DiplomacyScreen({ nationId }: { nationId?: string }) {
                     <span style={{ position: 'absolute', top: 0, height: 8, borderRadius: 4, background: rel.value >= 0 ? 'var(--positive)' : 'var(--negative)', left: `${Math.min(50, pct)}%`, width: `${Math.abs(pct - 50)}%` }} />
                   </div>
                   <div className="row spread small muted"><span>Hostile</span><span>Wary</span><span>Cordial</span><span>Allied</span></div>
-                  <p className="small">{reasoning(state, id)}</p>
+                  <p className="small">{reasoning(state, me, id)}</p>
                 </div>
               </section>
 
@@ -88,8 +110,8 @@ export function DiplomacyScreen({ nationId }: { nationId?: string }) {
                 <dl className="grid-2">
                   <div className="tile"><dt className="eyebrow">Population</dt><dd>{formatPopulation(n.stats.population)}</dd></div>
                   <div className="tile"><dt className="eyebrow">Territory</dt><dd>{eco.hexes} hexes</dd></div>
-                  <div className="tile"><dt className="eyebrow">Treasury</dt><dd>{rel.embassy ? `${Math.round(n.stats.treasury).toLocaleString()} (${eco.net >= 0 ? '+' : '−'}${Math.abs(eco.net)}/turn)` : 'Locked · open an embassy'}</dd></div>
-                  <div className="tile"><dt className="eyebrow">Army</dt><dd>{rel.embassy ? `${unitCount(state, id)} units · strength ${militaryStrength(state, id)}` : 'Locked · open an embassy'}</dd></div>
+                  <div className="tile"><dt className="eyebrow">Treasury</dt><dd>{embassy ? `${Math.round(n.stats.treasury).toLocaleString()} (${eco.net >= 0 ? '+' : '−'}${Math.abs(eco.net)}/turn)` : 'Locked · open an embassy'}</dd></div>
+                  <div className="tile"><dt className="eyebrow">Army</dt><dd>{embassy ? `${unitCount(state, id)} units · strength ${militaryStrength(state, id)}` : 'Locked · open an embassy'}</dd></div>
                 </dl>
                 <p className="small muted">Your own army’s strength is {militaryStrength(state, player.id)}. A rival that feels much stronger than a neighbour it dislikes will attack.</p>
               </section>

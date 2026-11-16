@@ -5,12 +5,13 @@ import { useGame } from '../store';
 
 /** The daily question: one political decision per turn that shapes the nation. */
 export function CouncilScreen() {
-  const { state, dispatch } = useGame();
+  const { state, me, dispatch } = useGame();
   const [picked, setPicked] = useState<number | null>(null);
-  if (!state.dilemma) return null;
-  const d = DILEMMA_BY_ID[state.dilemma.id];
-  const decided = state.dilemma.choice;
-  const player = state.nations[state.playerId];
+  const player = state.nations[me];
+  const today = player.seat!.dilemma;
+  if (!today) return null;
+  const d = DILEMMA_BY_ID[today.id];
+  const decided = today.choice;
 
   if (decided !== null) {
     const choice = d.choices[decided];
@@ -25,7 +26,7 @@ export function CouncilScreen() {
           <div className="outcome">
             <h2 className="h-panel">{choice.title}</h2>
             <p className="body-large">{choice.outcome}</p>
-            <EffectChips effects={record?.dilemmaId === d.id ? record.effects : scaledEffects(state, choice.effects)} />
+            <EffectChips effects={record?.dilemmaId === d.id ? record.effects : scaledEffects(state, choice.effects, me)} />
           </div>
           <p className="muted">The council meets again tomorrow. End the turn on the map to see the next question.</p>
           <div className="row">
@@ -68,7 +69,7 @@ export function CouncilScreen() {
           <fieldset className="col" style={{ border: 0, padding: 0, margin: 0 }}>
             <legend className="eyebrow" style={{ marginBottom: 8 }}>Choose one</legend>
             {d.choices.map((c, i) => {
-              const locked = !!c.requires && !requirementMet(state, c.requires);
+              const locked = !!c.requires && !requirementMet(state, me, c.requires);
               return (
                 <label key={i} className="choice">
                   <input type="radio" name="choice" checked={picked === i} disabled={locked} onChange={() => setPicked(i)} />
@@ -76,8 +77,8 @@ export function CouncilScreen() {
                     <strong>{c.title}</strong>
                     <span className="small muted">{c.desc}</span>
                     {c.requires && <span className={`small ${locked ? 'neg' : 'pos'}`}>{locked ? 'Locked' : 'Unlocked'} · {c.requires.label}</span>}
-                    {governmentAfter(state, c.effects) !== player.government && (
-                      <span className="small amber">Changes your government: you would become a {GOVERNMENT_BY_ID[governmentAfter(state, c.effects) as GovernmentId].name.toLowerCase()}</span>
+                    {governmentAfter(state, me, c.effects) !== player.government && (
+                      <span className="small amber">Changes your government: you would become a {GOVERNMENT_BY_ID[governmentAfter(state, me, c.effects) as GovernmentId].name.toLowerCase()}</span>
                     )}
                   </span>
                 </label>
@@ -86,7 +87,7 @@ export function CouncilScreen() {
           </fieldset>
           <div className="card col" aria-live="polite">
             <span className="eyebrow">Expected result</span>
-            {picked === null ? <span className="muted small">Pick a response to see what it will change.</span> : <EffectChips effects={scaledEffects(state, d.choices[picked].effects)} />}
+            {picked === null ? <span className="muted small">Pick a response to see what it will change.</span> : <EffectChips effects={scaledEffects(state, d.choices[picked].effects, me)} />}
           </div>
           <button type="submit" className="btn primary block" disabled={picked === null}>Issue decree</button>
           <a className="btn block" href="#/">Decide later</a>

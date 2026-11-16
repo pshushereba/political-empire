@@ -198,6 +198,8 @@ export const BALANCE = {
   hegemonyShare: 0.6,
   unrestBelow: 25,
   claimBase: 8,
+  /** Turns an unanswered proposal between players stays open. */
+  proposalTurns: 2,
   /** Stability lost when the form of government changes. */
   upheaval: 5,
   /** Daily return bonus: per day of the run, up to the cap. */

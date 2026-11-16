@@ -2,13 +2,17 @@ import { describe, expect, it } from 'vitest';
 import {
   applyAction, armyAt, armySize, canBuild, check, createGame, DEFAULT_FOUNDING, DILEMMA_BY_ID, distance, economy,
   forecast, hexAt, key, MAX_STACK, modifiers, neighbours, ownedHexes, reachable, relation, requirementMet, stance,
-  BUILDING_BY_ID, buildCost, buildingYield, coord, governmentFor, placementBonusCount, placementEffect, score, type GameState, type Action,
+  BUILDING_BY_ID, buildCost, buildingYield, coord, governmentFor, placementBonusCount, placementEffect, score, allReady, type FoundingChoices, type GameState, type Action,
 } from './index';
 
-const fresh = (over = {}): GameState => createGame({ ...DEFAULT_FOUNDING, seed: 7, ...over });
-const act = (s: GameState, a: Action): GameState => {
-  expect(check(s, a)).toEqual({ ok: true });
-  return applyAction(s, a);
+const fresh = (over: Partial<FoundingChoices> & { seed?: number; day?: string } = {}): GameState => {
+  const { seed = 7, day, ...choices } = over;
+  return createGame({ players: [{ ...DEFAULT_FOUNDING, ...choices }], seed, day });
+};
+const seat = (s: GameState, id = 'veyra') => s.nations[id].seat!;
+const act = (s: GameState, a: Action, id = 'veyra'): GameState => {
+  expect(check(s, a, id)).toEqual({ ok: true });
+  return applyAction(s, a, id);
 };
 
 describe('hex maths', () => {
@@ -29,7 +33,7 @@ describe('hex maths', () => {
 describe('founding', () => {
   it('sets axes from the founding answers', () => {
     const s = fresh({ answers: { liberty: 0, market: 2, reform: 1, openness: 2 } });
-    const n = s.nations[s.playerId];
+    const n = s.nations.veyra;
     expect(n.axes).toEqual({ liberty: 22, market: 78, reform: 50, openness: 78 });
     expect(n.axesAtFounding).toEqual(n.axes);
   });
@@ -54,7 +58,7 @@ describe('founding', () => {
 describe('the daily question', () => {
   it('blocks ending the turn until answered, then applies effects', () => {
     const s = fresh();
-    expect(check(s, { type: 'endTurn' }).ok).toBe(false);
+    expect(check(s, { type: 'endTurn' }, 'veyra').ok).toBe(false);
     const before = s.nations.veyra;
     const after = act(s, { type: 'decide', choice: 0 }).nations.veyra; // Break the strike
     expect(after.stats.treasury).toBe(before.stats.treasury + 60);
@@ -65,17 +69,17 @@ describe('the daily question', () => {
   });
   it('locks choices whose requirement is not met', () => {
     const s = fresh();
-    const locked = DILEMMA_BY_ID[s.dilemma!.id].choices[3];
-    expect(requirementMet(s, locked.requires!)).toBe(false);
-    expect(check(s, { type: 'decide', choice: 3 }).ok).toBe(false);
+    const locked = DILEMMA_BY_ID[seat(s).dilemma!.id].choices[3];
+    expect(requirementMet(s, 'veyra', locked.requires!)).toBe(false);
+    expect(check(s, { type: 'decide', choice: 3 }, 'veyra').ok).toBe(false);
   });
   it('asks a new question each turn and cannot be answered twice', () => {
     let s = act(fresh(), { type: 'decide', choice: 1 });
-    expect(check(s, { type: 'decide', choice: 0 }).ok).toBe(false);
+    expect(check(s, { type: 'decide', choice: 0 }, 'veyra').ok).toBe(false);
     s = act(s, { type: 'endTurn' });
     expect(s.turn).toBe(2);
-    expect(s.dilemma!.choice).toBeNull();
-    expect(s.dilemma!.id).not.toBe('docks-strike');
+    expect(seat(s).dilemma!.choice).toBeNull();
+    expect(seat(s).dilemma!.id).not.toBe('docks-strike');
   });
 });
 
@@ -90,7 +94,7 @@ describe('building', () => {
     expect(cost).toBe(125); // 120, plus 4% for the market street already standing
     expect(s.nations.veyra.stats.treasury).toBe(t0 - cost);
     expect(hexAt(s, cap).buildings).toHaveLength(2);
-    expect(check(s, { type: 'build', at: cap, building: 'shop' }).ok).toBe(false); // both lots used
+    expect(check(s, { type: 'build', at: cap, building: 'shop' }, 'veyra').ok).toBe(false); // both lots used
     expect(economy(s, 'veyra').approval).toBe(economy(fresh(), 'veyra').approval); // not finished yet
     s = act(s, { type: 'decide', choice: 1 });
     s = act(s, { type: 'endTurn' });
@@ -118,7 +122,7 @@ describe('armies', () => {
     const army = armyAt(s, cap)!;
     expect(army.units.infantry).toBe(4);
     expect(reachable(s, 'veyra', army, army.units, army.moved).size).toBe(0);
-    expect(check(s, { type: 'recruit', at: cap, unit: 'armour' }).ok).toBe(false);
+    expect(check(s, { type: 'recruit', at: cap, unit: 'armour' }, 'veyra').ok).toBe(false);
   });
   it('moves through own land, claims unclaimed land, and cannot enter neutral nations', () => {
     let s = fresh();
@@ -160,18 +164,18 @@ describe('armies', () => {
 describe('diplomacy', () => {
   it('needs the envoy on site, and an embassy costs treasury', () => {
     let s = fresh();
-    expect(check(s, { type: 'diplomacy', nation: 'ostmark', act: 'gift' }).ok).toBe(false);
+    expect(check(s, { type: 'diplomacy', nation: 'ostmark', act: 'gift' }, 'veyra').ok).toBe(false);
     const target = ownedHexes(s, 'ostmark')[0];
     s = act(s, { type: 'moveEnvoy', to: target });
     s = act(s, { type: 'decide', choice: 1 });
-    while (s.envoy.dest) {
+    while (seat(s).envoy.dest) {
       s = act(s, { type: 'endTurn' });
-      s = act(s, { type: 'decide', choice: DILEMMA_BY_ID[s.dilemma!.id].choices.length - 2 });
+      s = act(s, { type: 'decide', choice: DILEMMA_BY_ID[seat(s).dilemma!.id].choices.length - 2 });
     }
     const before = relation(s, 'veyra', 'ostmark').value;
     s = act(s, { type: 'diplomacy', nation: 'ostmark', act: 'gift' });
     expect(relation(s, 'veyra', 'ostmark').value).toBe(before + 12);
-    expect(check(s, { type: 'diplomacy', nation: 'ostmark', act: 'trade' }).ok).toBe(false); // one per turn
+    expect(check(s, { type: 'diplomacy', nation: 'ostmark', act: 'trade' }, 'veyra').ok).toBe(false); // one per turn
   });
 });
 
@@ -180,9 +184,9 @@ describe('a long game', () => {
     for (const seed of [1, 2, 3]) {
       let s = fresh({ seed });
       for (let t = 0; t < 120 && s.status === 'playing'; t++) {
-        const choices = DILEMMA_BY_ID[s.dilemma!.id].choices;
-        const pick = choices.findIndex((c, i) => i >= t % choices.length && (!c.requires || requirementMet(s, c.requires)));
-        s = applyAction(s, { type: 'decide', choice: pick === -1 ? 0 : pick });
+        const choices = DILEMMA_BY_ID[seat(s).dilemma!.id].choices;
+        const pick = choices.findIndex((c, i) => i >= t % choices.length && (!c.requires || requirementMet(s, 'veyra', c.requires)));
+        s = applyAction(s, { type: 'decide', choice: pick === -1 ? 0 : pick }, 'veyra');
         s = act(s, { type: 'endTurn' });
         for (const a of s.armies) {
           expect(hexAt(s, a).owner).toBe(a.owner);
@@ -223,12 +227,12 @@ describe('forms of government', () => {
   it('gives a dictatorship powers and buildings a democracy cannot have', () => {
     const tyrant = fresh({ answers: { liberty: 0, market: 1, reform: 1, openness: 1 } });
     const free = fresh({ answers: { liberty: 2, market: 1, reform: 1, openness: 1 } });
-    expect(check(free, { type: 'power', power: 'conscript' }).ok).toBe(false);
+    expect(check(free, { type: 'power', power: 'conscript' }, 'veyra').ok).toBe(false);
     const cap = tyrant.nations.veyra.capital;
     const after = act(tyrant, { type: 'power', power: 'conscript' });
     expect(armyAt(after, cap)!.units.infantry).toBe(armyAt(tyrant, cap)!.units.infantry + 2);
     expect(after.nations.veyra.stats.stability).toBe(tyrant.nations.veyra.stats.stability - 6);
-    expect(check(after, { type: 'power', power: 'conscript' }).ok).toBe(false); // cooling down
+    expect(check(after, { type: 'power', power: 'conscript' }, 'veyra').ok).toBe(false); // cooling down
     expect(canBuild(tyrant, 'veyra', hexAt(tyrant, cap), BUILDING_BY_ID.police).ok).toBe(true);
     expect(canBuild(free, 'veyra', hexAt(free, cap), BUILDING_BY_ID.police).ok).toBe(false);
     expect(canBuild(free, 'veyra', hexAt(free, cap), BUILDING_BY_ID.assembly).ok).toBe(true);
@@ -239,9 +243,9 @@ describe('forms of government', () => {
     expect(t2.nations.veyra.stats.stability).toBe(tyrant.nations.veyra.stats.stability);
     const free = structuredClone(fresh({ answers: { liberty: 2, market: 1, reform: 1, openness: 1 } }));
     free.nations.veyra.stats.stability = 45;
-    expect(check(free, { type: 'diplomacy', nation: 'lune', act: 'war' }).ok).toBe(false);
+    expect(check(free, { type: 'diplomacy', nation: 'lune', act: 'war' }, 'veyra').ok).toBe(false);
     free.nations.veyra.stats.stability = 60;
-    expect(applyAction(free, { type: 'diplomacy', nation: 'lune', act: 'war' }).nations.veyra.stats.stability).toBe(52);
+    expect(applyAction(free, { type: 'diplomacy', nation: 'lune', act: 'war' }, 'veyra').nations.veyra.stats.stability).toBe(52);
   });
 });
 
@@ -264,23 +268,103 @@ describe('placement', () => {
 describe('reasons to come back', () => {
   it('pays out objectives and brings in the next one', () => {
     let s = structuredClone(fresh());
-    expect(s.objectives.active).toEqual(['first-works', 'standing-army', 'room-to-grow']);
+    expect(seat(s).objectives.active).toEqual(['first-works', 'standing-army', 'room-to-grow']);
     const t0 = s.nations.veyra.stats.treasury;
     s.armies[0].units.infantry = 5;
     s = act(s, { type: 'recruit', at: s.nations.veyra.capital, unit: 'infantry' });
-    expect(s.objectives.done).toEqual(['standing-army']);
-    expect(s.objectives.active).toHaveLength(3);
+    expect(seat(s).objectives.done).toEqual(['standing-army']);
+    expect(seat(s).objectives.active).toHaveLength(3);
     expect(s.nations.veyra.stats.treasury).toBe(t0 - 60 + 50);
   });
   it('rewards returning on consecutive days, once a day', () => {
     let s = fresh({ day: '2026-11-16' });
-    expect(check(s, { type: 'checkIn', day: '2026-11-16' }).ok).toBe(false);
+    expect(check(s, { type: 'checkIn', day: '2026-11-16' }, 'veyra').ok).toBe(false);
     const t0 = s.nations.veyra.stats.treasury;
     s = act(s, { type: 'checkIn', day: '2026-11-17' });
-    expect(s.checkIn.streak).toBe(2);
+    expect(seat(s).checkIn.streak).toBe(2);
     expect(s.nations.veyra.stats.treasury).toBe(t0 + 60);
     s = act(s, { type: 'checkIn', day: '2026-11-20' }); // missed days: the run starts again
-    expect(s.checkIn.streak).toBe(1);
-    expect(score(s)).toBeGreaterThan(0);
+    expect(seat(s).checkIn.streak).toBe(1);
+    expect(score(s, 'veyra')).toBeGreaterThan(0);
+  });
+});
+
+describe('several players in one world', () => {
+  const two = (): GameState => createGame({
+    players: [{ ...DEFAULT_FOUNDING, name: 'Northern League' }, { ...DEFAULT_FOUNDING, name: 'Kingdom of Arden', answers: { liberty: 0, market: 1, reform: 0, openness: 1 } }],
+    seed: 11,
+  });
+
+  it('seats each player in their own nation and leaves the rest to the computer', () => {
+    const s = two();
+    expect(s.humans).toEqual(['veyra', 'kesh']);
+    expect(s.nations.kesh.name).toBe('Kingdom of Arden');
+    expect(s.nations.kesh.government).toBe('dictatorship');
+    expect(s.nations.kesh.seat).not.toBeNull();
+    expect(s.nations.ostmark.seat).toBeNull();
+    expect(s.nations.lune.seat).toBeNull();
+  });
+
+  it('gives each player their own question, and only moves the world on when all are ready', () => {
+    let s = two();
+    expect(check(s, { type: 'build', at: s.nations.kesh.capital, building: 'clinic' }, 'veyra').ok).toBe(false); // not your land
+    s = act(s, { type: 'decide', choice: 1 }, 'veyra');
+    expect(seat(s, 'kesh').dilemma!.choice).toBeNull();
+    s = act(s, { type: 'endTurn' }, 'veyra');
+    expect(s.turn).toBe(1);
+    expect(allReady(s)).toBe(false);
+    expect(check(s, { type: 'recruit', at: s.nations.veyra.capital, unit: 'infantry' }, 'veyra').ok).toBe(false); // waiting
+    expect(check(s, { type: 'endTurn' }, 'kesh').ok).toBe(false); // has not answered
+    s = act(s, { type: 'decide', choice: 2 }, 'kesh');
+    s = act(s, { type: 'endTurn' }, 'kesh');
+    expect(s.turn).toBe(2);
+    expect(seat(s, 'veyra').ready).toBe(false);
+    expect(seat(s, 'veyra').dilemma!.choice).toBeNull();
+    expect(seat(s, 'kesh').dilemma!.choice).toBeNull();
+  });
+
+  it('makes deals between players wait for the other side to agree', () => {
+    let s = structuredClone(two());
+    seat(s, 'veyra').envoy = { ...ownedHexes(s, 'kesh')[0], dest: null, arrivesTurn: 0 };
+    s.nations.veyra.stats.influence = 50;
+    s = act(s, { type: 'diplomacy', nation: 'kesh', act: 'trade' }, 'veyra');
+    expect(relation(s, 'veyra', 'kesh').tradePact).toBe(false);
+    expect(s.proposals).toHaveLength(1);
+    expect(check(s, { type: 'respond', proposal: s.proposals[0].id, accept: true }, 'veyra').ok).toBe(false); // not yours to answer
+    s = act(s, { type: 'respond', proposal: s.proposals[0].id, accept: true }, 'kesh');
+    expect(relation(s, 'veyra', 'kesh').tradePact).toBe(true);
+    expect(s.nations.veyra.stats.influence).toBe(10);
+    expect(s.proposals).toHaveLength(0);
+  });
+
+  it('lets one player conquer another, and names the winner', () => {
+    let s = structuredClone(two());
+    const target = s.nations.kesh.capital;
+    const next = neighbours(target, s.cols, s.rows)[3];
+    hexAt(s, next).owner = 'veyra';
+    s.armies.push({ id: 99, owner: 'veyra', ...next, units: { infantry: 0, armour: 8, artillery: 0 }, moved: 0 });
+    s = act(s, { type: 'diplomacy', nation: 'kesh', act: 'war' }, 'veyra');
+    s = act(s, { type: 'moveArmy', armyId: 99, to: target }, 'veyra');
+    expect(s.nations.kesh.alive).toBe(false);
+    expect(s.status).toBe('playing'); // two computer nations remain
+    expect(check(s, { type: 'decide', choice: 0 }, 'kesh').ok).toBe(false);
+    // The fallen player no longer holds up the turn.
+    s = act(s, { type: 'decide', choice: 1 }, 'veyra');
+    s = act(s, { type: 'endTurn' }, 'veyra');
+    expect(s.turn).toBe(2);
+  });
+
+  it('plays a long four-player game to the end without breaking', () => {
+    let s = createGame({ players: [DEFAULT_FOUNDING, DEFAULT_FOUNDING, DEFAULT_FOUNDING, DEFAULT_FOUNDING], seed: 5 });
+    expect(s.humans).toHaveLength(4);
+    for (let t = 0; t < 60 && s.status === 'playing'; t++) {
+      for (const id of s.humans) {
+        if (!s.nations[id].alive || s.status !== 'playing') continue;
+        s = applyAction(s, { type: 'decide', choice: t % 3 }, id);
+        s = applyAction(s, { type: 'endTurn' }, id);
+      }
+      for (const a of s.armies) expect(hexAt(s, a).owner).toBe(a.owner);
+    }
+    expect(s.turn).toBeGreaterThan(50);
   });
 });

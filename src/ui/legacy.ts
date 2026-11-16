@@ -1,4 +1,4 @@
-import { GOVERNMENT_BY_ID, score, type GameState, type GovernmentId } from '../game';
+import { GOVERNMENT_BY_ID, score, type GameState, type GovernmentId, type NationId } from '../game';
 
 // The hall of nations: a record of finished games, kept in this browser
 // so there is something to beat and a reason to try another kind of state.
@@ -25,15 +25,15 @@ export function loadLegacy(): LegacyRecord[] {
 }
 
 /** Remember a game that is ending. Very short games aren't worth recording. */
-export function recordLegacy(state: GameState): LegacyRecord | null {
+export function recordLegacy(state: GameState, me: NationId): LegacyRecord | null {
   if (state.status === 'playing' && state.turn < 5) return null;
-  const n = state.nations[state.playerId];
+  const n = state.nations[me];
   const record: LegacyRecord = {
     name: n.name,
     government: n.government as GovernmentId,
     turns: state.turn,
-    score: score(state),
-    outcome: state.status === 'playing' ? 'abandoned' : state.status,
+    score: score(state, me),
+    outcome: state.status === 'playing' ? 'abandoned' : state.winner === me ? 'won' : 'lost',
     hexes: state.hexes.filter((h) => h.owner === n.id).length,
     date: new Date().toISOString().slice(0, 10),
   };

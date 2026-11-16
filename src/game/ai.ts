@@ -27,9 +27,9 @@ function considerWarAndPeace(state: GameState, id: NationId, rng: Rng): void {
   const me = state.nations[id];
   const wars = enemiesOf(state, id);
   if (wars.length) {
-    // Long wars between rivals burn out. Wars with the player end only when the player offers peace.
+    // Long wars between rivals burn out. Wars with a human-run nation end only when that player offers peace.
     for (const e of wars) {
-      if (e === state.playerId) continue;
+      if (state.nations[e].seat) continue;
       if (state.turn - relation(state, id, e).warSince >= 10 && rng.float() < 0.25) makePeace(state, id, e);
     }
     return;
@@ -43,7 +43,7 @@ function considerWarAndPeace(state: GameState, id: NationId, rng: Rng): void {
     const rel = relation(state, id, o);
     if (rel.napUntil >= state.turn || rel.value >= threshold) return false;
     // New players get time to find their feet.
-    if (o === state.playerId && state.turn < BALANCE.playerGraceTurns) return false;
+    if (state.nations[o].seat && state.turn < BALANCE.playerGraceTurns) return false;
     if (!sharesBorder(state, id, o)) return false;
     const needed = enemiesOf(state, o).length ? 0.9 : 1.2;
     return myStrength >= needed * (militaryStrength(state, o) + 6);

@@ -12,6 +12,17 @@ One turn is one day in the life of the nation.
 
 **You win** by conquest (no rival capital still stands) or hegemony (you hold 60% of the land). **You lose** if your capital is taken, or a rival reaches hegemony first.
 
+### Players
+
+A world has four nations. One to four are run by people (`state.humans`); the computer runs the rest. Everything that belongs to a person rather than a nation (their daily question, envoy, objectives, daily run, and whether they have ended the turn) lives in that nation's `seat`.
+
+- Every action names the nation taking it: `applyAction(state, action, nationId)`. Nothing in the rules assumes which nation "you" are.
+- Players act in any order during a turn. A player who has ended their turn can do nothing more until the world moves on, which happens when every player still in the game has ended theirs.
+- A player whose capital falls is out. The game goes on for the others, and ends when one nation wins or no player is left.
+- **Deals between players need agreement.** A trade pact, non-aggression pact or peace offered to another player becomes a proposal they accept or decline; it lapses after 2 turns. Gifts between players move real treasury. Computer-run nations still answer at once.
+- The log is per-player: private notes (`to`) are only shown to that nation, and events are marked important only for the nations they concern (`about`).
+- Players join in this order of starting position: the centre, then Kesh's, Lune's and Ostmark's. The map is not symmetrical, so the positions are not equally good.
+
 ## 2. Hex maths
 
 - Hexes are **pointy-top**. For radius `R`: width `W = √3·R`, height `H = 2R`, row spacing `1.5R`.

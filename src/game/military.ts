@@ -163,38 +163,38 @@ export function collapse(state: GameState, loserId: NationId, winnerId: NationId
     rel.war = false;
     rel.tradePact = false;
   }
+  state.proposals = state.proposals.filter((p) => p.from !== loserId && p.to !== loserId);
   log(state, { kind: 'war', important: true, at: loser.capital,
     text: `${loser.name} has fallen. ${winner.name} took its capital${loot ? ` and ${loot} from its treasury` : ''}; its outer provinces broke away.` });
   checkOutcome(state);
 }
 
+/** Is the game decided? Sets status, winner and a description of how it ended. */
 export function checkOutcome(state: GameState): void {
   if (state.status !== 'playing') return;
-  const player = state.nations[state.playerId];
-  if (!player.alive) {
-    state.status = 'lost';
-    state.outcome = `${player.name} fell on turn ${state.turn}. Its capital was taken.`;
-    return;
-  }
-  const rivalsAlive = state.order.some((id) => id !== state.playerId && state.nations[id].alive);
-  if (!rivalsAlive) {
-    state.status = 'won';
-    state.outcome = `Conquest. No rival capital still stands. ${player.name} rules alone.`;
+  const end = (winner: NationId | null, outcome: string): void => {
+    state.status = 'over';
+    state.winner = winner;
+    state.outcome = outcome;
+  };
+  const alive = state.order.filter((id) => state.nations[id].alive);
+  if (alive.length === 1) {
+    end(alive[0], `Conquest. No other capital still stands, and ${state.nations[alive[0]].name} rules alone.`);
     return;
   }
   const land = state.hexes.filter((h) => h.terrain !== 'sea').length;
   const needed = Math.ceil(land * BALANCE.hegemonyShare);
-  for (const id of state.order) {
+  for (const id of alive) {
     const held = state.hexes.filter((h) => h.owner === id).length;
-    if (held < needed) continue;
-    if (id === state.playerId) {
-      state.status = 'won';
-      state.outcome = `Hegemony. ${player.name} holds ${held} of ${land} hexes, and no one can challenge it.`;
-    } else {
-      state.status = 'lost';
-      state.outcome = `${state.nations[id].name} holds ${held} of ${land} hexes. The world answers to it now, and so do you.`;
+    if (held >= needed) {
+      end(id, `Hegemony. ${state.nations[id].name} holds ${held} of ${land} hexes, and the world answers to it now.`);
+      return;
     }
-    return;
+  }
+  // With no person left to play, there is no game.
+  if (!state.humans.some((id) => state.nations[id].alive)) {
+    const leader = alive.sort((x, y) => state.hexes.filter((h) => h.owner === y).length - state.hexes.filter((h) => h.owner === x).length)[0];
+    end(leader ?? null, `Every nation run by a player has fallen. ${leader ? state.nations[leader].name + ' is left to inherit the map.' : ''}`);
   }
 }
 
@@ -226,7 +226,6 @@ export function executeMove(state: GameState, army: Army, to: HexRef, moving: Un
   const speed = armySpeed(moving);
   const target = hexAt(state, to);
   const me = state.nations[army.owner];
-  const involvesPlayer = army.owner === state.playerId || target.owner === state.playerId;
 
   if (option.kind === 'move') {
     mover.c = to.c; mover.r = to.r;
@@ -240,7 +239,7 @@ export function executeMove(state: GameState, army: Army, to: HexRef, moving: Un
     mover.c = to.c; mover.r = to.r;
     mover.moved = speed;
     placeArmy(state, mover);
-    if (army.owner === state.playerId) log(state, { kind: 'info', at: to, text: `Your troops occupied unclaimed ${TERRAIN[target.terrain].name.toLowerCase()} at ${coord(to)}.` });
+    if (me.seat) log(state, { kind: 'info', to: army.owner, at: to, text: `Your troops occupied unclaimed ${TERRAIN[target.terrain].name.toLowerCase()} at ${coord(to)}.` });
     checkOutcome(state);
     return;
   }
@@ -285,7 +284,7 @@ export function executeMove(state: GameState, army: Army, to: HexRef, moving: Un
     placeArmy(state, mover);
     defender.stats.stability = Math.max(0, defender.stats.stability - 2);
     me.tally.battlesWon++;
-    log(state, { kind: 'battle', important: involvesPlayer, at: to,
+    log(state, { kind: 'battle', important: true, about: [army.owner, defenderId], at: to,
       text: `${me.short} took ${where}. Losses: ${me.short} ${lossA}, ${defender.short} ${lossD}.` });
     if (wasCapital) collapse(state, defenderId, army.owner);
     else checkOutcome(state);
@@ -303,7 +302,7 @@ export function executeMove(state: GameState, army: Army, to: HexRef, moving: Un
   mover.c = origin.c; mover.r = origin.r;
   mover.moved = speed;
   if (armySize(mover.units) > 0) placeArmy(state, mover);
-  log(state, { kind: 'battle', important: involvesPlayer, at: to,
+  log(state, { kind: 'battle', important: true, about: [army.owner, defenderId], at: to,
     text: `${me.short} attacked ${where} and was thrown back. Losses: ${me.short} ${lossA}, ${defender.short} ${Math.max(0, lossD)}.` });
 }
 
