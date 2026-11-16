@@ -33,9 +33,10 @@
 24. **Everything stays visible between players for now.** Treasuries and armies are public. Revisit if it hurts play.
 25. **Two kinds of multiplayer are wanted:** private games among friends, and open play against people anywhere. See the open question on world size.
 
-## Open questions
+26. **Build for worlds of 8 to 12 nations for now.** Friends games and matched public games share this shape. It needs a map generator, more nation colours and a pool of computer nations.
+27. **Long term: one open world.** An endless, scrollable hex map where players find, inspect, trade with and attack other nations. It is a separate mode with a different structure, described in `ROADMAP.md`. Nearer work should not close it off: generate land from a seed and coordinates, and build the map view to pan and zoom.
 
-- **How big is a world, and what is "open" play?** Four nations is a limit of the fixed map, not the rules. Friends games and matched public games need generated maps for more players. A single persistent world for everyone is a different, larger design. See `docs/backend.md`.
+## Open questions
 
 - **Should ranked scores be validated on the server?** Today the client reports its own score. An Edge Function could replay the game and compute it. Worth doing before the ranking matters to anyone.
 - **Sign-in methods.** Email link only so far. Google, Apple or passwords are a Supabase setting plus a button.
