@@ -1,151 +1,273 @@
 # Game model
 
-Rules and content exactly as the designs use them. Numbers here are prototype values: balance them later, but keep them in data files so they are easy to change.
+The rules as implemented in `src/game/`. Every number here lives in a data file under `src/game/content/` (mostly `BALANCE` in `world.ts`), so balance changes are one-line edits. If this document and the code disagree, the code and its tests are right; fix the document.
 
-## 1. Hex maths
+## 1. The loop
+
+One turn is one day in the life of the nation.
+
+1. **Answer the daily question** at the Council. The turn cannot end until you do.
+2. **Run the nation**: build on your hexes, raise troops, move armies, claim land, send your envoy, conduct diplomacy.
+3. **End the turn.** Rivals act, every nation's books are settled, a turn report shows what happened, and a new question arrives.
+
+**You win** by conquest (no rival capital still stands) or hegemony (you hold a set share of the land: 60% in a world of four, less in larger worlds). **You lose** if your capital is taken, or a rival reaches hegemony first.
+
+### Players
+
+A world has 4 to 12 nations. Any number of them, from one to all, are run by people (`state.humans`); the computer runs the rest. Everything that belongs to a person rather than a nation (their daily question, envoy, objectives, daily run, and whether they have ended the turn) lives in that nation's `seat`.
+
+- Every action names the nation taking it: `applyAction(state, action, nationId)`. Nothing in the rules assumes which nation "you" are.
+- Players act in any order during a turn. A player who has ended their turn can do nothing more until the world moves on, which happens when every player still in the game has ended theirs.
+- A player whose capital falls is out. The game goes on for the others, and ends when one nation wins or no player is left.
+- **Deals between players need agreement.** A trade pact, non-aggression pact or peace offered to another player becomes a proposal they accept or decline; it lapses after 2 turns. Gifts between players move real treasury. Computer-run nations still answer at once.
+- The log is per-player: private notes (`to`) are only shown to that nation, and events are marked important only for the nations they concern (`about`).
+- Starting positions are drawn by lot on a generated map. Every nation gets the same amount of starting land, though the land around it differs.
+
+## 2. Hex maths
 
 - Hexes are **pointy-top**. For radius `R`: width `W = √3·R`, height `H = 2R`, row spacing `1.5R`.
-- Store world positions as **odd-r offset** `(col, row)`: odd rows shift right by `W/2`. Pixel top-left = `(col·W + (row odd ? W/2 : 0), row·1.5R)`.
-- For distance, convert to cube/axial: `q = col − (row − (row & 1)) / 2`, `r = row`. Then `distance = (|dq| + |dr| + |dq + dr|) / 2`.
-- Display coordinates as two-digit `CC·RR` (for example `08·03`).
+- World positions are stored as **odd-r offset** `(col, row)`: odd rows shift right by `W/2`.
+- Distance uses cube/axial coordinates: `q = col − (row − (row & 1)) / 2`, `r = row`, `distance = (|dq| + |dr| + |dq + dr|) / 2`.
+- Coordinates display as `CC·RR` (for example `08·03`).
 
-## 2. Starting world (14 × 10)
+Code: `hex.ts`.
 
-Each nation claims every hex within its radius of its capital. Ties go to the nearer capital.
+## 3. The world
 
-| Nation | id | Capital (col, row) | Radius | Colour | Stance to player |
-| --- | --- | --- | --- | --- | --- |
-| Republic of Veyra (player) | `veyra` | 5, 5 | 3 | `#E8A33D` | — |
-| Ostmark Union | `ostmark` | 10, 2 | 2 | `#3FA7A0` | Cordial |
-| Kesh Directorate | `kesh` | 11, 7 | 2 | `#C4607A` | Hostile |
-| Free Cities of Lune | `lune` | 2, 1 | 2 | `#8DB8E8` | Wary |
+A world holds **4 to 12 nations** and is generated fresh for each game from a seed (`worldgen.ts`). The same seed always gives the same world.
 
-- Sea hexes: `(c ≤ 1 and r ≥ 6)` or `(r = 9 and c ≤ 6)` or `(c = 13 and r ≤ 3)` or `(c = 0 and r ≥ 3)`.
-- Everything else is unclaimed.
-- Map fills: capital at full nation colour, the player's other hexes at 80% opacity, rivals' at 58%, unclaimed `#232B35`, sea `#131C27`.
-- Terrain for land hexes (prototype only): `hash(c, r) % 5` over Plains, Forest, Hills, Highlands, Farmland, where `hash = ((c·73856093) XOR (r·19349663)) >>> 0`. Replace with authored or generated terrain.
-- The player's radius-3 territory is 37 hexes, which matches "Territory 37 hexes" on the Nation screen.
+- **Size** grows with the number of nations, at about 35 hexes of map each: 14 × 10 for 4 nations, 20 × 14 for 8, 25 × 17 for 12. Roughly four-fifths is land, so each nation has about 29 land hexes to its name.
+- **Land comes from the seed and the coordinates** of each hex, through layered noise for height, wetness and rivers. Nothing depends on the order hexes are made in, so a world could later be extended region by region.
+- **Capitals** are spread as far apart as the land allows and are never closer than 5 hexes, so starting territories do not touch. Which nation gets which capital is drawn by lot.
+- **Fair starts**: every hex within 2 of a capital is land, so every nation begins with exactly 19 hexes.
+- **No islands**: any capital cut off by sea is joined to the rest by a land bridge, so every nation can reach, and be reached by, every other.
+- Land beside the sea is Coast.
 
-## 3. Envoy and travel
+**Nations.** Players are seated first (`p1`, `p2`, …); the computer fills the remaining seats from a pool of eleven rivals, taken in order, so Ostmark, Kesh and Lune appear in every solo game. Each rival has its own ideology (and so its own form of government), temperament, and opening opinion of players. Colours are assigned by seat from a palette of twelve; the first player is always amber.
 
-- The player has one envoy, which starts on their capital.
-- Travel time = `ceil(distance / 2)` turns.
-- Envoys cannot enter sea hexes. The prototype moves the envoy instantly; the real game should move it along a path over the travel turns.
-- Arriving in a foreign nation's hex enables the Foreign screen for that nation ("Your envoy is visiting").
-
-## 4. Nation
-
-```ts
-type AxisId = 'liberty' | 'market' | 'reform' | 'openness';
-// 0–100. Ends: Authority↔Liberty, Collective↔Market, Tradition↔Reform, Isolation↔Openness.
-
-interface Nation {
-  id: string; name: string; motto: string;
-  flag: { pattern: 'tricolour' | 'bands' | 'canton'; a: string; b: string };
-  capital: HexRef; startingLand: 'coast' | 'river' | 'highlands';
-  foundedTurn: number;
-  stats: { population: number; treasury: number; stability: number; influence: number };
-  axes: Record<AxisId, number>; axesAtFounding: Record<AxisId, number>;
-  factions: Record<FactionId, number>;   // approval 0–100
-  relations: Record<NationId, number>;   // −100…+100
-  decisions: DecisionRecord[];
-}
-```
-
-**Founding questions** set `axesAtFounding` and `axes`. Option index 0/1/2 → 22/50/78.
-
-| Question | Axis | Options |
+| Rival | Character | Opening stance |
 | --- | --- | --- |
-| Who should hold power? | Authority ↔ Liberty | One strong leader · A council of elders · The people, by vote |
-| Who owns the harvest? | Collective ↔ Market | The state shares it · Guilds and towns · Whoever grows it |
-| What of the old ways? | Tradition ↔ Reform | Keep them · Adapt them · Replace them |
-| Strangers at the border? | Isolation ↔ Openness | Close the gates · Trade only · Welcome them |
+| Ostmark Union | Aristocracy. Cautious, expansionist | Cordial (+30) |
+| Kesh Directorate | Dictatorship. Aggressive | Hostile (−45) |
+| Free Cities of Lune | Merchant republic. Peaceful, land-hungry | Wary (−5) |
+| Varn Compact | Commune. Generous, stubborn | +10 |
+| Crown of Thessaly | Aristocracy. Patient, traditional | 0 |
+| Dominion of Azhar | Dictatorship. The most aggressive | −35 |
+| Halden Confederacy | Democracy. Very hard to provoke | +20 |
+| Order of Saint Orrin | Aristocracy. Isolationist | −15 |
+| Meridian Syndicate | Merchant republic. Opportunistic | +15 |
+| People's State of Brakka | One-party state. Suspicious | −20 |
+| Marches of Tov | Council republic. Defensive | −5 |
 
-**Flag colour pairs:** Amber `#E8A33D` + navy `#1F3A5F` · Teal `#3FA7A0` + black `#0E1217` · Rose `#C4607A` + ivory `#ECE9E2` · Sky `#8DB8E8` + umber `#5B3A1E`. The tricolour's middle stripe is always ivory `#ECE9E2`.
+**Winning in a larger world.** Hegemony needs 60% of the land in a world of four, falling with size to 30% in worlds of eight or more (2.4 times a fair share, never less than 30%). The share at which a nation frightens the others scales the same way.
 
-**Prototype state of Veyra at turn 14:** population 3.2M (+4.1%/turn), treasury 1,240 (+85/turn), stability 68%, influence 42, territory 37 hexes. Axes now (at founding): Liberty 66 (45), Market 61 (50), Reform 47 (38), Openness 74 (52).
+| Terrain | Income | Supply | Defender bonus | Armour attacking in |
+| --- | --- | --- | --- | --- |
+| Plains | 1 | 1 | — | 100% |
+| Farmland | 1 | 2 | — | 100% |
+| Forest | 2 | 0 | +25% | 60% |
+| Hills | 2 | 0 | +25% | 80% |
+| Highlands | 1 | 0 | +50% | 60% |
+| Coast | 2 | 1 | — | 100% |
+| River | 1 | 2 | +15% | 80% |
 
-**Factions:** Merchant Houses 72, Frontier Settlers 63, Old Clergy 55, Dockworkers' Guild 31.
+**Starting land** (chosen at the founding): Coast +10% income · River valley +4 supply, three river hexes by the capital · Highlands +20% defence, −2 supply, highland hexes by the capital.
 
-**Relations labels:** Hostile, Wary, Cordial, Allied. The bucket boundaries are not set yet; suggested: < −40 Hostile, −40 to 10 Wary, 10 to 60 Cordial, > 60 Allied. Ostmark is +34 (Cordial).
+## 4. Ideology
 
-## 5. Eras
+Four axes, 0–100: Authority↔Liberty, Collective↔Market, Tradition↔Reform, Isolation↔Openness. The founding answers set them to 22 / 50 / 78; the daily question moves them. The further an axis leans, the stronger its effect (`modifiers()` in `economy.ts`). At the extreme:
 
-| Era | Turns | Note |
+| Lean | Benefit | Cost |
 | --- | --- | --- |
-| Founding | 1 | A harbour town and 12 hexes of coast |
-| First Era · The Assembly | 2–9 | Elected council formed; river valley settled |
-| Second Era · Trade & Tension | 10–now | 64% toward the next era |
-| Third Era | locked | Unlocks at 5M population and 50 hexes |
+| Authority | Army upkeep −30%, recruitment −20% | Influence −1.5 a turn; risk of revolt (below) |
+| Liberty | Approval +4, influence +2 a turn | Army upkeep +10% |
+| Collective | Supply +25%, approval +2 | Business income −20% |
+| Market | Business income +30% | Approval −3 (inequality) |
+| Tradition | Stability +8 | Buildings cost 10% more |
+| Reform | Buildings cost 20% less | Stability −5 (upheaval) |
+| Isolation | Defence of your land +25% | Trade and export income −40%, influence −1 a turn |
+| Openness | Trade and export income +60%, influence +2 a turn | Defence −10% |
 
-Era progress formula: open. A reasonable start is the lower of the population progress and the hex progress.
+Every lean has a price, so no answer is free and a centrist state is a real choice rather than a missed bonus.
 
-## 6. Districts and buildings
+**Revolt.** A nation with Liberty below 40 can be risen against. The chance each turn grows with how far it leans to authority and how unhappy its people are (low stability counts most, low faction approval the rest), up to 35% a turn at the extreme. Each security bureau cuts it by a quarter, up to two; a muzzled press raises it and a free one lowers it. A revolt loots 20% of the treasury, burns a business or service, turns one unit of the capital's garrison, costs 12 stability, and pushes the nation 5 points toward liberty. Eight turns of quiet follow. Computer-run nations are subject to it too.
 
-- A **district** is a named group of the player's hexes. For now there is one fixed district per nation (Saline District, 7 hexes: the capital and its six neighbours). Naming and subdividing districts comes later (see decisions).
-- Each hex has **2 lots**.
-- A building can go on a hex when the hex has a free lot, the hex's land matches the building's `needs` (if any), and any one-per-district limit is respected.
-- Placing a building spends its cost from the treasury. It is under construction for `turns` turns, then its effects count.
-- District output = the sum of the effects of all finished buildings. The prototype counts new ones immediately; the real game shouldn't.
+### Standing policies
 
-**District hexes (prototype):** Saline city (Capital) — Bank, Market street · Coast — Border checkpoint · Forest — empty · Farmland — Factory · River — Water works · Hills — empty · Plains — empty.
+Eight dials, each with five levels, moved one step at a time by answers at the Council and never set directly (`content/policies.ts`). Unlike an answer's one-off effects, a policy acts every turn until another answer moves it.
 
-**Modern building catalogue.** Effects: `def` Security, `sup` Supply, `inc` Revenue, `mor` Approval.
+| Policy | Lowest level | Highest level |
+| --- | --- | --- |
+| Taxes | Tax haven: business and wage taxes −30%, approval +3, Merchants drift to 80 | Punishing: +30%, approval −3, Merchants drift to 20 |
+| Schooling | Unschooled: business income −18%, buildings cost +15%, influence −2; saves 3 per million people | Learned: business income +15%, buildings −8%, influence +2; costs 7 per million |
+| Public health | None: population growth −1.5% a turn, stability −5; saves 3 per million | Care for all: growth +1%, approval +2; costs 7 per million |
+| Workers' protections | Sink or swim: business income +10%, approval −3, Dockworkers drift to 20 | Cradle to grave: business income −10%, approval +3, Dockworkers drift to 80; costs 5 per million |
+| The press | State press only: stability +4, influence −2, approval −1, risk of revolt +40% | Unbridled: influence +2, approval +1, stability −3, risk of revolt −40% |
+| Church and state | Secular state: business income +5%, stability −3, Clergy drift to 20 | Rule by the temple: stability +6, business income −8%, influence −2, Clergy drift to 80 |
+| Immigration | Sealed borders: stability +3, population growth −0.8% a turn, business income −5%, Settlers drift to 65 | Open door: growth +1.2%, business income +8%, stability −4, approval −1, Settlers drift to 35 |
+| Military footing | Token force: army upkeep −25%, approval +2, defence −15%, raising troops +20% | Garrison state: defence +16%, raising troops −20%, upkeep +12%, approval −2, influence −1 |
 
-| id | Name | Category | Cost | Turns | Effects | Needs |
+The middle level of each does nothing. Faction drift is one point a turn.
+
+Ideology also sets diplomacy: nations with similar axes drift toward friendship, different ones toward hostility.
+
+### Forms of government
+
+The axes decide what kind of state the nation is (`governmentFor()` in `content/governments.ts`). When an answer to the daily question pushes the nation across a line, the government changes: 5 stability is lost in the upheaval, the old powers go and new ones arrive. The Council warns before any answer that would do this.
+
+| Government | When | Standing effects | Powers (cooldown in turns) |
+| --- | --- | --- | --- |
+| Dictatorship | Liberty ≤ 22 | Upkeep −15%, influence −1. War costs no stability. Unrest starts below 35% | Conscript the young: 2 free infantry, stability −6 (5) · Crack down: stability +14, factions fall (6) · Seize private assets: treasury +160, Merchants −15 (8) |
+| Aristocracy | Liberty 23–42, Reform < 50 | Stability +5, defence +10%, buildings cost 10% more. War costs 2 | Levy the estates: treasury +110 (6) · Court patronage: stability +6 for 80 treasury (6) · Dynastic marriage: relations +10 with everyone for 25 influence (10) |
+| One-party state | Liberty 23–42, Reform ≥ 50 | Buildings cost 10% less, approval −2. War costs 2. Unrest below 30% | Crash programme: every building site finishes at once, 60 treasury (8) · Purge the ministries: stability +8, influence −8 (8) |
+| Council republic | Liberty 43–59 | None | Special assembly: stability +6 for 15 influence (5) |
+| Democracy | Liberty ≥ 60, Market 36–64 | Approval +2, influence +1. War needs 50% stability and costs 8 | Referendum: stability +9 for 20 influence (6) · Goodwill mission: influence +20, relations +5 for 60 treasury (8) |
+| Merchant republic | Liberty ≥ 60, Market ≥ 65 | Business income +10%, trade pacts +25%, upkeep +10%. War costs 6 | War bonds: treasury +180 for 10 influence (8) · Mercenaries: 2 infantry for 150 treasury (5) |
+| Commune | Liberty ≥ 60, Market ≤ 35 | Supply +15%, business income −10%, approval +1. War costs 6 | Work brigade: 2 turns off every building site (6) · Day of solidarity: stability +7 for 40 treasury (6) |
+
+Five buildings can only be built by certain governments (see §6). One already standing keeps working if the government changes. Rivals have governments too (Kesh is a dictatorship, Ostmark an aristocracy, Lune a merchant republic) and use the same powers.
+
+**Factions** (approval 0–100, moved by the daily question): Merchant Houses scale income, Dockworkers' Guild scales supply, Frontier Settlers add to population growth, Old Clergy add to stability. Average faction approval also feeds stability.
+
+## 5. Economy
+
+Settled every turn by `economy()`.
+
+- **Income** = (15 + land yields + 12 per million people + buildings + 10 per trade pact) × multiplier, where the multiplier is `0.75 + stability/200`, scaled by Merchant approval. Minus **army upkeep**.
+- **Supply** = 4 + land yields + buildings. Each million people use 8, each unit uses 1. A surplus grows the population (up to +5% a turn); a shortage shrinks it and pulls stability down.
+- **Stability** moves a fifth of the way toward a target each turn: 55, plus approval × 1.5, plus faction effects, minus 4 per war, minus 0.5 per hex beyond 20, minus supply shortage. Below 25%, border hexes can break away.
+- **Influence** (+2 a turn, more from schools, broadcast towers, embassies and ideology) pays for claiming land and for pacts.
+- **Standing policies** (§4) scale business income, wage taxes, building costs and growth, and some cost the treasury each turn per million people.
+- **Exports.** Farm co-operatives make grain, timber yards timber, mines ore, factories manufactured goods: one unit per building per turn. Each turn a nation sells what it makes abroad at the world price, dearest first, up to its shipping capacity: 1 by road, +3 per port terminal, +2 per trade pact. This is on top of what those buildings earn at home. Open nations sell for more (the trade pact bonus applies).
+  - **World prices** start from a base (goods 9, ore 7, timber 5, grain 4), rise to 1.6× when few nations make a good and fall to 0.6× in a glut (balanced at 1.5 producers per nation), and wander up to 8% a turn within a band.
+  - **Grain is kept at home by default.** Each unit sold costs 1 supply. A nation chooses which goods it exports.
+  - War ends a trade pact and the shipping that came with it.
+- **Bankruptcy**: an empty treasury makes a unit desert each turn and costs stability.
+- **Eras** unlock buildings and units. They need both land and people: First Era 22 hexes and 1.4M · Second Era 26 and 2.4M · Third Era 40 and 4.0M.
+
+## 6. Buildings
+
+Every owned hex has **2 lots**. Placing a building spends its cost at once; it produces nothing until its construction turns are over. Each building a nation owns makes the next 4% dearer. Catalogue: `content/buildings.ts`.
+
+| Building | Category | Cost | Turns | Per turn | Needs | Era |
 | --- | --- | --- | --- | --- | --- | --- |
-| checkpoint | Border checkpoint | Security | 70 | 1 | def +2, inc +1 | — |
-| wall | Fortified wall | Security | 200 | 3 | def +6, mor −1 | — |
-| garrison | Garrison | Security | 260 | 3 | def +7 | — |
-| water | Water works | Utilities | 120 | 2 | sup +4, mor +1 | River |
-| power | Power station | Utilities | 220 | 3 | sup +5, mor −1 | — |
-| factory | Factory | Utilities | 180 | 3 | sup +3, inc +3, mor −1 | — |
-| shop | Market street | Commerce | 90 | 1 | inc +3, mor +1 | — |
-| bank | Bank | Commerce | 300 | 3 | inc +6 | Capital |
-| port | Port terminal | Commerce | 260 | 4 | inc +5, sup +2 | Coast |
-| school | School | Services | 140 | 2 | mor +3, inc +1 | — |
-| clinic | Clinic | Services | 120 | 2 | mor +4 | — |
-| transit | Transit station | Services | 160 | 2 | mor +2, inc +2 | — |
+| Border checkpoint | Security | 70 | 1 | Defence +2, income +1 | — | 0 |
+| Fortified wall | Security | 200 | 3 | Defence +6, approval −1 | — | 0 |
+| Garrison | Security | 220 | 2 | Defence +4; troops can be raised here | — | 0 |
+| Farm co-operative | Utilities | 80 | 1 | Supply +3 | Farmland or plains | 0 |
+| Water works | Utilities | 120 | 2 | Supply +4, approval +1 | River or coast | 0 |
+| Power station | Utilities | 220 | 3 | Supply +6, approval −1 | — | 2 |
+| Market street | Commerce | 80 | 1 | Income +7 | — | 0 |
+| Timber yard | Commerce | 100 | 2 | Income +8, supply +1 | Forest | 0 |
+| Mine | Commerce | 140 | 2 | Income +12, approval −1 | Hills or highlands | 0 |
+| Factory | Commerce | 180 | 3 | Income +13, supply +2, approval −1; allows armour | — | 1 |
+| Port terminal | Commerce | 240 | 3 | Income +18, supply +2 | Coast | 1 |
+| Bank | Commerce | 300 | 3 | Income +26 | Capital, one per nation | 1 |
+| Clinic | Services | 120 | 2 | Approval +3 | — | 0 |
+| School | Services | 140 | 2 | Approval +2, influence +1 | — | 0 |
+| Transit station | Services | 160 | 2 | Approval +2, income +3 | — | 1 |
+| Broadcast tower | Services | 240 | 3 | Influence +3, approval +1 | — | 2 |
 
-Card descriptions are in `BuildModern.dc.html` (the `B` array). How district output feeds national stats (for example Revenue into treasury per turn, Approval into stability or factions) is open.
+Only some governments can build these:
 
-## 7. Diplomacy (Ostmark, prototype)
+| Building | Category | Cost | Turns | Per turn | Needs | Governments |
+| --- | --- | --- | --- | --- | --- | --- |
+| Security bureau | Security | 160 | 2 | Defence +2, approval +4, influence −1 | — | Dictatorship, One-party state |
+| Grand palace | Services | 260 | 3 | Approval +2, influence +3 | Capital, one per nation | Dictatorship, Aristocracy |
+| Assembly hall | Services | 200 | 3 | Approval +3, influence +2 | Capital, one per nation | Council republic, Democracy, Commune |
+| Stock exchange | Commerce | 280 | 3 | Income +20 | One per nation, First Era | Merchant republic, Democracy |
+| People's granary | Utilities | 140 | 2 | Supply +6, approval +1 | — | Commune, One-party state |
 
-One action per visit.
+### Placement
+
+A building is affected by finished buildings on its own hex and the six hexes around it (`yields.ts`). This is what the district close-up is for: pick a building and every hex that can take it shows what building there would change, counting both the new building's own bonus and what it does to its neighbours.
+
+| Building | Effect, per matching neighbour |
+| --- | --- |
+| Market street | Income +2 near a clinic, school or transit station (up to 3) |
+| Timber yard | Income +3 near a factory |
+| Mine | Income +3 near a factory or power station (up to 2) |
+| Factory | Income +3 near a mine, timber yard or power station (up to 3) |
+| Port terminal | Income +2 near a factory or market street (up to 3) |
+| Bank | Income +3 near a market street, port or stock exchange (up to 3) |
+| Stock exchange | Income +3 near a bank, port or factory (up to 3) |
+| Transit station | Income +1 near a market street, factory or port (up to 3) |
+| Farm co-operative | Supply +1 near a water works or granary (up to 2) |
+| Clinic, School | Approval −1 near a factory, mine or power station (up to 2) |
+| Fortified wall | Defence +2 near a garrison |
+| Border checkpoint | Defence +1 near a garrison |
+
+A captured hex keeps its businesses and services. Security buildings, the bank and unfinished sites are destroyed.
+
+## 7. Armies and war
+
+| Unit | Cost | Upkeep | Attack | Defence | Moves | Unlock |
+| --- | --- | --- | --- | --- | --- | --- |
+| Infantry | 60 | 4 | 3 | 3 | 2 | — |
+| Armour | 150 | 9 | 8 | 5 | 3 | First Era and a factory |
+| Artillery | 120 | 7 | 6 | 1 | 2 | Second Era; halves the value of fortifications |
+
+- Troops are raised at the capital or a garrison and spend their first turn mustering.
+- An army is the units on one hex: at most 8, one army per hex. It moves at the pace of its slowest unit and can be split.
+- Armies travel through their own land. Stepping onto **unclaimed land occupies it for free**. Stepping onto **a nation you are at war with is an attack**. Either ends the move. You cannot enter a nation you are at peace with.
+- **Battle** (`executeMove` in `military.ts`): attack = sum of unit attack, ±15%. Defence = (units' defence + militia 3, or 10 in a capital) × terrain × 1.25 in a capital × ideology, + fortifications. A hex with no friendly land beside it is **cut off** and defends at 60%.
+  - Attack ≥ defence: the hex is taken. The attacker loses up to 45% of its units (fewer the bigger the margin). Defenders lose half and retreat, or are destroyed at 2:1.
+  - Otherwise the attackers lose 30–70% and fall back; defenders lose a few.
+- The panel shows a forecast (Decisive / Favourable / Even / Poor) before you commit.
+- **Taking a capital ends that nation.** The conqueror gets every hex within 2 of the capital and half the treasury; the outer provinces become unclaimed.
+
+## 8. Diplomacy
+
+Relations run −100 to +100: below −40 Hostile, to 10 Wary, to 60 Cordial, above Allied. Each turn they drift one point toward a baseline: `30 − 1.4 × average axis difference`, +15 with a trade pact, +10 with your embassy, −8 for a shared border with no pact, −15 if either nation holds over 35% of the land.
+
+Envoy actions need the envoy inside the nation's borders (travel takes `ceil(distance / 2)` turns), one per nation per turn.
 
 | Action | Cost | Effect |
 | --- | --- | --- |
-| Propose a trade pact | 40 influence | Relations +10; both treasuries grow each turn |
-| Open an embassy | 200 treasury | Reveals treasury and army; lets you see their dilemmas |
-| Settle the river crossing (hex 08·03) | 1 hex | Relations +18 |
-| Denounce their chancellor | Free | Relations −25; favour at home with the Assembly |
+| Trade pact | 40 influence, relations ≥ 0 | Relations +10; income each turn |
+| Embassy | 200 treasury | Reveals treasury and army; baseline +10; +1 influence a turn |
+| State gift | 100 treasury | Relations +12 |
+| Non-aggression pact | 30 influence, relations ≥ 20 | No war for 12 turns; removes border friction |
+| Denounce | Free | Relations −25; stability +3 at home |
+| Declare war (from anywhere) | Stability −4 | Ends pacts. Breaking a non-aggression pact costs 10 stability and 15 relations with everyone |
+| Propose peace (from anywhere) | Free | Accepted after 3 turns of war unless they are clearly stronger; always after 12. Starts a 6-turn truce |
 
-Known about Ostmark: population 2.6M, 19 hexes, federal council, exports iron and timber. Their axes: Liberty 34, Market 40, Reform 30, Openness 58.
+Land can also be claimed peacefully: an unclaimed hex beside yours costs `8 + hexes/4` influence.
 
-## 8. Dilemmas
+## 9. Rival nations
+
+Rivals use the same rules, costs and battles as the player (`ai.ts`). Each turn a rival decides on war and peace, raises troops toward a target size, builds what it most needs (supply if short, approval if unstable, otherwise income), claims land, and moves its armies: attack at good odds, fall back if its capital is threatened, close with the enemy at war, otherwise garrison the border or occupy free land.
+
+A rival declares war on a neighbour it dislikes enough (how much depends on its aggression, and patience shortens as the game goes on) when it is at least 20% stronger and no pact stands in the way. Rivals leave each other alone until turn 12 and the player alone until turn 20.
+
+## 10. The daily question
 
 ```ts
 interface Dilemma {
-  id: string; title: string; category: string; urgency: string;
-  body: string;
-  voices: { faction: FactionId; quote: string }[];
-  choices: {
-    title: string; desc: string; outcome: string;
-    effects: { target: string; delta: number }[];   // stat, faction or axis
-    requires?: { stat: string; min: number };
-  }[];
+  id: string; title: string; category: string; body: string;
+  voices: { faction: FactionId; name: string; quote: string }[];
+  choices: { title: string; desc: string; outcome: string; effects: Effect[]; requires?: Requirement }[];
+  when?: 'war' | 'peace';   // only asked in that situation
 }
 ```
 
-**The Saline Docks strike** (Labour, decide this turn). Port closed: treasury −60 per turn until resolved.
+- One question per turn, drawn from a shuffled deck of 44 (`content/dilemmas.ts`); none repeats until all have been asked. The first is always *The Saline Docks strike*.
+- Effects change stats, faction approval, axes, standing policies and (via `relations`) every rival's opinion. Axis deltas point toward Liberty / Market / Reform / Openness, so `liberty −12` displays as "Authority +12". Treasury effects grow 50% per era.
+- A choice with `requires` is locked until the stat or axis reaches its threshold.
+- To add a question, add an object to the `DILEMMAS` array. No code changes. A test checks that every policy dial can be moved at least three ways up and three ways down, so no dial is left stranded.
 
-| Choice | Effects |
-| --- | --- |
-| Break the strike | Treasury +60, Stability −8, Dockworkers −30, Merchants +10, Authority +12 |
-| Negotiate shorter shifts | Treasury −40, Stability +4, Dockworkers +15, Merchants −5, Collective +6 |
-| Give the Guild an Assembly seat | Treasury −10, Stability +9, Dockworkers +35, Merchants −18, Liberty +10 |
-| Ask Ostmark to send its own dockers | Requires influence 60 (player has 42) |
+### Pace
 
-"Authority +12" means the Liberty axis moves 12 toward Authority. "Collective +6" moves the Market axis 6 toward Collective.
+Each game has settings chosen when it is created (`state.settings`):
 
-A second dilemma is teased on the map: "Ostmark asks for river rights" (Diplomacy, 3 turns left). It has no content yet.
+- **Time to answer the question** (`questionSeconds`: off, 30 s, 1 min, 2 min). When on, the day's question is sealed. Opening it starts the clock. If it runs out, the council picks one of the available answers at random and the nation loses 3 stability on top of that answer's effects.
+- **Time for each turn** (`turnSeconds`: off, or any length; a day is 86400). When it runs out the player's turn is ended for them, answering the question by default first if they hadn't.
+- **Whose clock runs when** (`clock`): `together` starts everyone's turn clock when the turn begins, for online play. `inTurn` starts a player's clock when they take the device, for pass-and-play.
+
+The rules never read the time. The caller passes `now` to `applyAction`, and an `expire` action is accepted only if a deadline has really passed. The browser does this for local games; a server will do it for online ones, so a player cannot stop their own clock.
+
+## 11. Reasons to come back
+
+- **Objectives** (`content/objectives.ts`): three are always active, taken in order from a list of 21, from "finish 3 buildings" to "reach the Third Era". Completing one pays a reward and brings in the next. Each is a metric and a target, so adding one is a line of data.
+- **The daily run**: opening the game on a new calendar day pays a welcome-back bonus of 30 treasury and 4 influence per day of the run, up to day 5. Missing a day restarts the run. It never blocks play. The rules stay pure: the screen passes today's date in a `checkIn` action.
+- **The hall of nations** (`src/ui/legacy.ts`): every finished or abandoned game of 5 turns or more is scored (`score.ts`) and kept in the browser. The founding screen shows the best scores and which of the seven governments you have won as.

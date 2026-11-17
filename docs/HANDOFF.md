@@ -1,6 +1,21 @@
 # Implementation handoff
 
-This document turns the Political Empire designs into a build plan. Read `docs/decisions.md` first for what is settled and what is not.
+This document turned the Political Empire designs into a build plan. Read `docs/decisions.md` first for what is settled and what is not.
+
+## Status
+
+The first build exists and goes further than the scope below: it is a complete game with an economy, armies, invasion, rival AI and win and loss conditions. The rules are in `docs/game-model.md`. Sections 3 and 4 still describe the look and layout of each screen, with these differences:
+
+| Brief | What was built |
+| --- | --- |
+| No combat, static rivals (§1) | Armies, battles, capture, and rivals that build, expand and declare war. |
+| Player starts with 37 hexes at turn 14 | Every nation starts level, with 19 hexes at turn 1. |
+| District building screen for one fixed district (§4.6) | The close-up at `/district/c,r` shows any hex you own and its six neighbours, flat or tilted, with the build menu and placement previews. Quick building is also possible from the map's side panel. |
+| "Decide later" dilemmas in a queue (§4.5) | One question per turn, and it must be answered before the turn ends. |
+| Envoy moves instantly; one diplomatic action per visit | The envoy takes its travel turns; one action per nation per turn. |
+| Header resources: Treasury, Stability, Influence, Population | Supply added, with per-turn changes beside Treasury and Influence. |
+| Zoom controls on the map | The map scales to fit the window instead. |
+| Fixed 1440 × 900 window | Fluid layout, minimum width 1100 px. |
 
 ## 1. Scope of the first build
 

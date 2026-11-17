@@ -1,0 +1,129 @@
+import { useState } from 'react';
+import { BALANCE, DILEMMA_BY_ID, FACTIONS, questionDeadline, questionSealed, GOVERNMENT_BY_ID, governmentAfter, requirementMet, scaledEffects, type GovernmentId } from '../../game';
+import { EffectChips } from '../components/common';
+import { clockText, useGame, useNow } from '../store';
+
+/** The daily question: one political decision per turn that shapes the nation. */
+export function CouncilScreen() {
+  const { state, me, dispatch } = useGame();
+  const [picked, setPicked] = useState<number | null>(null);
+  const player = state.nations[me];
+  const today = player.seat!.dilemma;
+  const deadline = questionDeadline(state, me);
+  const now = useNow(deadline !== null);
+  const limit = state.settings.questionSeconds;
+  if (!today) return null;
+  const d = DILEMMA_BY_ID[today.id];
+  const decided = today.choice;
+
+  if (decided !== null) {
+    const choice = d.choices[decided];
+    const record = player.decisions[player.decisions.length - 1];
+    return (
+      <div className="page">
+        <div className="wrap" style={{ maxWidth: 760 }}>
+          <div className="col gap-8">
+            <span className="eyebrow amber">Decree issued · Turn {state.turn}</span>
+            <h1 className="h-dilemma">{d.title}</h1>
+          </div>
+          <div className="outcome">
+            <h2 className="h-panel">{choice.title}</h2>
+            <p className="body-large">{choice.outcome}</p>
+            <EffectChips effects={record?.dilemmaId === d.id ? record.effects : scaledEffects(state, choice.effects, me)} />
+          </div>
+          <p className="muted">The council meets again tomorrow. End the turn on the map to see the next question.</p>
+          <div className="row">
+            <a className="btn light" href="#/nation">See your nation change</a>
+            <a className="btn" href="#/">Back to the map</a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (questionSealed(state, me)) {
+    return (
+      <div className="page">
+        <div className="wrap" style={{ maxWidth: 640 }}>
+          <div className="col gap-8">
+            <span className="eyebrow amber">Today’s question · Turn {state.turn}</span>
+            <h1 className="h-dilemma">The council is waiting</h1>
+          </div>
+          <p className="body-large">Today’s question is sealed. Once you open it you have {limit >= 60 ? `${limit / 60} minute${limit > 60 ? 's' : ''}` : `${limit} seconds`} to answer.</p>
+          <p className="muted">If the time runs out, the council decides without you and the dithering costs {BALANCE.indecision} stability. Open it when you are ready to give it your full attention.</p>
+          <div className="row">
+            <button type="button" className="btn primary" style={{ padding: '0 32px' }} onClick={() => dispatch({ type: 'openQuestion' })}>Open the question</button>
+            <a className="btn" href="#/">Not yet</a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const left = deadline !== null ? deadline - now : null;
+  return (
+    <div className="page">
+      {left !== null && (
+        <div className={`countdown ${left < 15_000 ? 'urgent' : ''}`} role="timer" aria-label={`${Math.ceil(left / 1000)} seconds left to answer`}>
+          <span className="mono">{clockText(left)}</span>
+          <div className="bar grow"><span style={{ width: `${Math.max(0, Math.min(100, (left / (limit * 1000)) * 100))}%` }} /></div>
+          <span className="small">to answer, or the council decides for you</span>
+        </div>
+      )}
+      <div className="wrap council">
+        <div className="col gap-24">
+          <div className="row gap-8">
+            <span className="chip">{d.category}</span>
+            <span className="chip" style={{ background: 'var(--surface-amber)', color: 'var(--accent)' }}>Today’s question · Turn {state.turn}</span>
+          </div>
+          <h1 className="h-dilemma">{d.title}</h1>
+          <p className="body-large">{d.body}</p>
+          <div className="col">
+            {d.voices.map((v, i) => {
+              const f = FACTIONS.find((x) => x.id === v.faction)!;
+              return (
+                <figure key={i} className="voice" style={{ margin: 0 }}>
+                  <span className="avatar" style={{ borderColor: f.color }} aria-hidden="true" />
+                  <div className="col gap-4">
+                    <blockquote style={{ margin: 0 }}>“{v.quote}”</blockquote>
+                    <figcaption className="small muted">{v.name}, {f.name} · approval {player.factions[v.faction]}</figcaption>
+                  </div>
+                </figure>
+              );
+            })}
+          </div>
+        </div>
+
+        <form className="col gap-16" onSubmit={(e) => { e.preventDefault(); if (picked !== null) dispatch({ type: 'decide', choice: picked }); }}>
+          <h2 className="h-section">How will you respond?</h2>
+          <fieldset className="col" style={{ border: 0, padding: 0, margin: 0 }}>
+            <legend className="eyebrow" style={{ marginBottom: 8 }}>Choose one</legend>
+            {d.choices.map((c, i) => {
+              const locked = !!c.requires && !requirementMet(state, me, c.requires);
+              return (
+                <label key={i} className="choice">
+                  <input type="radio" name="choice" checked={picked === i} disabled={locked} onChange={() => setPicked(i)} />
+                  <span className="col gap-4">
+                    <strong>{c.title}</strong>
+                    <span className="small muted">{c.desc}</span>
+                    {c.requires && <span className={`small ${locked ? 'neg' : 'pos'}`}>{locked ? 'Locked' : 'Unlocked'} · {c.requires.label}</span>}
+                    {governmentAfter(state, me, c.effects) !== player.government && (
+                      <span className="small amber">Changes your government: you would become a {GOVERNMENT_BY_ID[governmentAfter(state, me, c.effects) as GovernmentId].name.toLowerCase()}</span>
+                    )}
+                  </span>
+                </label>
+              );
+            })}
+          </fieldset>
+          <div className="card col" aria-live="polite">
+            <span className="eyebrow">Expected result</span>
+            {picked === null ? <span className="muted small">Pick a response to see what it will change.</span> : <EffectChips effects={scaledEffects(state, d.choices[picked].effects, me)} />}
+          </div>
+          <button type="submit" className="btn primary block" disabled={picked === null}>Issue decree</button>
+          {left === null && <a className="btn block" href="#/">Decide later</a>}
+          <p className="small muted">You are a {GOVERNMENT_BY_ID[player.government as GovernmentId].name.toLowerCase()}. Answers that move Authority and Liberty far enough change that, and with it what your state can do. The turn cannot end until the council has its answer.</p>
+        </form>
+      </div>
+    </div>
+  );
+}
